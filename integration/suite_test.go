@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/thilinashashimalsenarath/go-asgardeo/management"
+	"github.com/shashimalcse/go-asgardeo/management"
 )
 
 var (

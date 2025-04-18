@@ -1,4 +1,4 @@
-module github.com/thilinashashimalsenarath/go-asgardeo
+module github.com/shashimalcse/go-asgardeo
 
 go 1.22.3
 

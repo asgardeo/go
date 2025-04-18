@@ -5,7 +5,7 @@ Go SDK for WSO2 Asgardeo Management API.
 ## Installation
 
 ```bash
-go get github.com/thilinashashimalsenarath/go-asgardeo/management
+go get github.com/shashimalcse/go-asgardeo/management
 ```
 
 ## Usage
@@ -18,7 +18,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/thilinashashimalsenarath/go-asgardeo/management"
+    "github.com/shashimalcse/go-asgardeo/management"
 )
 
 func main() {
