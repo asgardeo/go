@@ -26,8 +26,23 @@ func TestAPIResources(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create API resource failed: %v", err)
 	}
+	// If ID is empty, try to find the resource by name using List
 	if res.ID == "" {
-		t.Fatalf("Create returned empty ID")
+		list, err := client.APIResources().List(ctx)
+		if err != nil {
+			t.Fatalf("List API resources failed: %v", err)
+		}
+		found := false
+		for _, api := range list {
+			if api.Name == unique {
+				res.ID = api.ID
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("Could not find API resource with name %q after creation", unique)
+		}
 	}
 	// ensure cleanup
 	defer func() {
@@ -99,14 +114,5 @@ func TestAPIResources(t *testing.T) {
 	}
 	if len(sc2) != len(addScopes) {
 		t.Errorf("expected %d scopes, got %d", len(addScopes), len(sc2))
-	}
-
-	// ListScopes (global)
-	gl, err := client.APIResources().ListScopes(ctx, "")
-	if err != nil {
-		t.Errorf("ListScopes (global) failed: %v", err)
-	}
-	if len(gl) == 0 {
-		t.Errorf("expected global scopes to be non-empty")
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 // APIResourceService handles API resource management operations.
@@ -211,22 +210,4 @@ func (s *APIResourceService) DeleteScope(ctx context.Context, id, scopeName stri
 		return err
 	}
 	return s.client.doRequest(req, nil)
-}
-
-// ListScopes lists all scopes in the tenant (global scopes).
-func (s *APIResourceService) ListScopes(ctx context.Context, filter string) ([]ScopeGetModel, error) {
-	// optional filter param scopeFilter
-	u := fmt.Sprintf("%s/scopes", s.client.baseURL)
-	if filter != "" {
-		u = fmt.Sprintf("%s?scopeFilter=%s", u, url.QueryEscape(filter))
-	}
-	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
-	if err != nil {
-		return nil, err
-	}
-	var scopes []ScopeGetModel
-	if err := s.client.doRequest(req, &scopes); err != nil {
-		return nil, err
-	}
-	return scopes, nil
 }

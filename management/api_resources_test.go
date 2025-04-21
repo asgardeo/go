@@ -178,13 +178,4 @@ func TestAPIResourceScopes_CRUD(t *testing.T) {
 	if err := client.APIResources().DeleteScope(ctx, "res1", "read"); err != nil {
 		t.Errorf("DeleteScope error: %v", err)
 	}
-
-	// ListScopes
-	sAll, err := client.APIResources().ListScopes(ctx, "")
-	if err != nil {
-		t.Errorf("ListScopes error: %v", err)
-	}
-	if len(sAll) != 1 || sAll[0].Name != "admin" || sAll[0].ID != "s2" {
-		t.Errorf("ListScopes mismatch: %+v", sAll)
-	}
 }
