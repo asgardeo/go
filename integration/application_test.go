@@ -12,7 +12,7 @@ import (
 )
 
 // TestApplicationLifecycle covers create, get, update, regenerate secret, and delete.
-func TestApplicationLifecycle(t *testing.T) {
+func TestApplications(t *testing.T) {
 	// unique application name per run
 	name := fmt.Sprintf("go-asgardeo-test-%d", time.Now().UnixNano())
 
