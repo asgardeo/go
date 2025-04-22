@@ -3,6 +3,7 @@ package management
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -113,7 +114,7 @@ func (c *Client) exchangeTokenForSubOrg(orgID string) (string, error) {
 
 	data := url.Values{}
 	data.Set("grant_type", "organization_switch")
-	data.Set("scope", "SYSTEM email openid profile")
+	data.Set("scope", "SYSTEM")
 	data.Set("switching_organization", orgID)
 	data.Set("token", c.token)
 
@@ -125,6 +126,11 @@ func (c *Client) exchangeTokenForSubOrg(orgID string) (string, error) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+
+	// Add Basic Authorization header with base64(clientId:clientSecret)
+	creds := c.clientID + ":" + c.clientSecret
+	basicAuth := base64.StdEncoding.EncodeToString([]byte(creds))
+	req.Header.Set("Authorization", "Basic "+basicAuth)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
