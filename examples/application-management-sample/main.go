@@ -12,10 +12,10 @@ func main() {
 	// Initialize management client with client credentials
 	ctx := context.Background()
 	client, err := management.New(
-		"https://api.asgardeo.io/t/sahan1001",
+		"https://api.asgardeo.io/t/<organization>",
 		management.WithClientCredentials(ctx,
-			"bk9jKLdRl9pYquj1hkWZDoqujVIa",
-			"6v2OGSM8gRM_jUi1IFOlLNPytf1iAK5uuMcifOJuvsAa",
+			"<client_id>",
+			"<client_secret>",
 		),
 	)
 
@@ -31,3 +31,9 @@ func main() {
 		fmt.Printf("Application ID: %s, Name: %s\n", app.ID, app.Name)
 	}
 }
+
+// How to run this example:
+// 1. Replace <organization>, <client_id>, and <client_secret> with your actual values.
+// 		Ensure the application has the necessary permissions to access the management API.
+// 2. Save this code in a file named `main.go`.
+// 3. Run the code using `go run main.go`.
