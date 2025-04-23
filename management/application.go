@@ -19,25 +19,168 @@ type Application struct {
 	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	// Add other fields as needed
+	ImageUrl    string `json:"imageUrl,omitempty"`
+	AccessUrl   string `json:"accessUrl,omitempty"`
+	TemplateId  string `json:"templateId,omitempty"`
+	TemplateVersion string `json:"templateVersion,omitempty"`
+	IsManagementApp bool `json:"isManagementApp,omitempty"`
+	ClaimConfiguration *ClaimConfiguration `json:"claimConfiguration,omitempty"`
+	InboundProtocolConfiguration *InboundProtocolConfiguration `json:"inboundProtocolConfiguration,omitempty"`
+	AuthenticationSequence *AuthenticationSequence `json:"authenticationSequence,omitempty"`
+	AdvancedConfigurations *AdvancedConfigurations `json:"advancedConfigurations,omitempty"`
 }
 
-// AdvancedConfigurations defines skip consent behaviors.
+// ClaimConfiguration defines the claim configuration for an application.
+type ClaimConfiguration struct {
+	Dialect         string           `json:"dialect"`
+	ClaimMappings   []ClaimMapping   `json:"claimMappings,omitempty"`
+	RequestedClaims []RequestedClaim `json:"requestedClaims,omitempty"`
+	Subject         *Subject         `json:"subject,omitempty"`
+	Role            *Role            `json:"role,omitempty"`
+}
+
+// ClaimMapping represents a mapping between application and local claims.
+type ClaimMapping struct {
+	ApplicationClaim string     `json:"applicationClaim"`
+	LocalClaim      LocalClaim `json:"localClaim"`
+}
+
+// LocalClaim represents a local claim.
+type LocalClaim struct {
+	URI string `json:"uri"`
+}
+
+// RequestedClaim represents a requested claim.
+type RequestedClaim struct {
+	Claim     LocalClaim `json:"claim"`
+	Mandatory bool       `json:"mandatory"`
+}
+
+// Subject represents the subject configuration.
+type Subject struct {
+	Claim                 LocalClaim `json:"claim"`
+	IncludeUserDomain     bool       `json:"includeUserDomain"`
+	IncludeTenantDomain   bool       `json:"includeTenantDomain"`
+	UseMappedLocalSubject bool       `json:"useMappedLocalSubject"`
+}
+
+// Role represents the role configuration.
+type Role struct {
+	Mappings         []RoleMapping `json:"mappings,omitempty"`
+	IncludeUserDomain bool         `json:"includeUserDomain"`
+	Claim            LocalClaim    `json:"claim"`
+}
+
+// RoleMapping represents a mapping between local and application roles.
+type RoleMapping struct {
+	LocalRole      string `json:"localRole"`
+	ApplicationRole string `json:"applicationRole"`
+}
+
+// AuthenticationSequence represents the authentication sequence configuration.
+type AuthenticationSequence struct {
+	Type          string        `json:"type"`
+	Steps         []Step        `json:"steps,omitempty"`
+	Script        string        `json:"script,omitempty"`
+	SubjectStepId int          `json:"subjectStepId,omitempty"`
+	AttributeStepId int        `json:"attributeStepId,omitempty"`
+}
+
+// Step represents an authentication step.
+type Step struct {
+	Id      int      `json:"id"`
+	Options []AuthenticationOption `json:"options"`
+}
+
+// Option represents an authentication option.
+type AuthenticationOption struct {
+	Idp          string `json:"idp"`
+	Authenticator string `json:"authenticator"`
+}
+
+// AdvancedConfigurations defines advanced application configurations.
 type AdvancedConfigurations struct {
-	SkipLogoutConsent bool `json:"skipLogoutConsent"`
-	SkipLoginConsent  bool `json:"skipLoginConsent"`
+	Saas                    bool   `json:"saas,omitempty"`
+	DiscoverableByEndUsers  bool   `json:"discoverableByEndUsers,omitempty"`
+	Certificate            *Certificate `json:"certificate,omitempty"`
+	SkipLoginConsent       bool   `json:"skipLoginConsent,omitempty"`
+	SkipLogoutConsent      bool   `json:"skipLogoutConsent,omitempty"`
+	UseExternalConsentPage bool   `json:"useExternalConsentPage,omitempty"`
+	ReturnAuthenticatedIdpList bool `json:"returnAuthenticatedIdpList,omitempty"`
+	EnableAuthorization     bool   `json:"enableAuthorization,omitempty"`
+}
+
+// Certificate represents the certificate configuration.
+type Certificate struct {
+	Type  string `json:"type,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
+// InboundOIDCConfig holds OIDC inbound protocol settings.
+type InboundOIDCConfig struct {
+	ClientId                string   `json:"clientId,omitempty"`
+	ClientSecret            string   `json:"clientSecret,omitempty"`
+	GrantTypes             []string `json:"grantTypes,omitempty"`
+	ResponseTypes          []string `json:"responseTypes,omitempty"`
+	CallbackURLs           []string `json:"callbackUrls,omitempty"`
+	AllowedOrigins         []string `json:"allowedOrigins,omitempty"`
+	PublicClient           bool     `json:"publicClient,omitempty"`
+	Pkce                   *PKCE    `json:"pkce,omitempty"`
+	AccessToken            *AccessToken `json:"accessToken,omitempty"`
+	RefreshToken           *RefreshToken `json:"refreshToken,omitempty"`
+	IdToken                *IdToken `json:"idToken,omitempty"`
+	Logout                 *Logout  `json:"logout,omitempty"`
+	ValidateRequestObjectSignature bool `json:"validateRequestObjectSignature,omitempty"`
+	ScopeValidators        []string `json:"scopeValidators,omitempty"`
+	TokenEndpointAuthMethod string   `json:"tokenEndpointAuthMethod,omitempty"`
+}
+
+// PKCE represents PKCE configuration.
+type PKCE struct {
+	Mandatory                     bool `json:"mandatory,omitempty"`
+	SupportPlainTransformAlgorithm bool `json:"supportPlainTransformAlgorithm,omitempty"`
+}
+
+// AccessToken represents access token configuration.
+type AccessToken struct {
+	Type                                string `json:"type,omitempty"`
+	UserAccessTokenExpiryInSeconds      int    `json:"userAccessTokenExpiryInSeconds,omitempty"`
+	ApplicationAccessTokenExpiryInSeconds int  `json:"applicationAccessTokenExpiryInSeconds,omitempty"`
+	BindingType                         string `json:"bindingType,omitempty"`
+	RevokeTokensWhenIDPSessionTerminated bool `json:"revokeTokensWhenIDPSessionTerminated,omitempty"`
+	ValidateTokenBinding                bool `json:"validateTokenBinding,omitempty"`
+}
+
+// RefreshToken represents refresh token configuration.
+type RefreshToken struct {
+	ExpiryInSeconds int  `json:"expiryInSeconds,omitempty"`
+	RenewRefreshToken bool `json:"renewRefreshToken,omitempty"`
+}
+
+// IdToken represents ID token configuration.
+type IdToken struct {
+	ExpiryInSeconds int      `json:"expiryInSeconds,omitempty"`
+	Audience        []string `json:"audience,omitempty"`
+	Encryption      *Encryption `json:"encryption,omitempty"`
+}
+
+// Encryption represents encryption configuration.
+type Encryption struct {
+	Enabled   bool   `json:"enabled,omitempty"`
+	Algorithm string `json:"algorithm,omitempty"`
+	Method    string `json:"method,omitempty"`
+}
+
+// Logout represents logout configuration.
+type Logout struct {
+	BackChannelLogoutUrl  string `json:"backChannelLogoutUrl,omitempty"`
+	FrontChannelLogoutUrl string `json:"frontChannelLogoutUrl,omitempty"`
 }
 
 // AssociatedRoles defines roles association for application.
 type AssociatedRoles struct {
 	AllowedAudience string   `json:"allowedAudience"`
 	Roles           []string `json:"roles"`
-}
-
-// InboundOIDCConfig holds minimal OIDC inbound protocol settings.
-type InboundOIDCConfig struct {
-	GrantTypes        []string `json:"grantTypes"`
-	IsFAPIApplication bool     `json:"isFAPIApplication"`
 }
 
 // InboundProtocolConfiguration wraps protocol configs.
@@ -466,4 +609,22 @@ func (s *AuthorizedAPIsService) Delete(ctx context.Context, apiID string) error 
 		return err
 	}
 	return s.client.doRequest(req, nil)
+}
+
+// CreateApplication creates a new Asgardeo application.
+func (s *ApplicationService) CreateApplication(ctx context.Context, name string) (*Application, error) {
+	input := ApplicationCreateInput{
+		Name: name,
+		TemplateID: "b9c5e11e-fc78-484b-9bec-015d247561b8", // OIDC template
+		InboundProtocolConfiguration: &InboundProtocolConfiguration{
+			OIDC: &InboundOIDCConfig{
+				GrantTypes: []string{"authorization_code"},
+				ResponseTypes: []string{"code"},
+				CallbackURLs: []string{"https://localhost:3000"},
+				TokenEndpointAuthMethod: "client_secret_basic",
+			},
+		},
+	}
+
+	return s.Create(ctx, input)
 }
