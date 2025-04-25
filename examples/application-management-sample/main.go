@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/shashimalcse/go-asgardeo/management"
+	"github.com/asgardeo/go/management"
 )
 
 func main() {

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shashimalcse/go-asgardeo/management"
+	"github.com/asgardeo/go/management"
 )
 
 // TestAuthorizedAPIs covers listing, updating, retrieving and deleting authorized APIs for an application.

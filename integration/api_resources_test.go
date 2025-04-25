@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shashimalcse/go-asgardeo/management"
+	"github.com/asgardeo/go/management"
 )
 
 // TestAPIResourceLifecycle performs full CRUD and scope operations against real Asgardeo server

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shashimalcse/go-asgardeo/management"
+	"github.com/asgardeo/go/management"
 )
 
 // TestApplicationLifecycle covers create, get, update, regenerate secret, and delete.
