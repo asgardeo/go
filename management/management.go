@@ -272,11 +272,6 @@ func (c *Client) Applications() *ApplicationService {
 	return &ApplicationService{client: c}
 }
 
-// APIResources returns an APIResourceService to manage API resources.
-func (c *Client) APIResources() *APIResourceService {
-	return &APIResourceService{client: c}
-}
-
 // SubOrgApplications returns a SubOrgApplicationService to manage applications in a sub-organization
 func (c *Client) SubOrgApplications() *SubOrgApplicationService {
 	return &SubOrgApplicationService{client: c}
