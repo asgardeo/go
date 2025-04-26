@@ -37,7 +37,7 @@ jobs:
       - name: Compute next version
         id: versioning
         run: |
-          IFS='.' read -r major minor patch <<< "${{ steps.get_latest.outputs.latest_tag#v }}"
+          IFS='.' read -r major minor patch <<< "${{ steps.get_latest.outputs.latest_tag }}"
           case "${{ github.event.inputs.version }}" in
             major)
               major=$((major + 1)); minor=0; patch=0 ;;
