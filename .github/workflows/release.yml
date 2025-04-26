@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version bump type (major, minor, patch)'
+        required: true
+        default: patch
+
+jobs:
+  release:
+    name: Tag and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed to get all tags
+
+      - name: Set up Git config
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Get latest tag
+        id: get_latest
+        run: |
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          if [ -z "$latest" ]; then
+            latest="v0.0.0"
+          fi
+          echo "Latest tag: $latest"
+          echo "latest_tag=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Compute next version
+        id: versioning
+        run: |
+          IFS='.' read -r major minor patch <<< "${{ steps.get_latest.outputs.latest_tag#v }}"
+          case "${{ github.event.inputs.version }}" in
+            major)
+              major=$((major + 1)); minor=0; patch=0 ;;
+            minor)
+              minor=$((minor + 1)); patch=0 ;;
+            patch)
+              patch=$((patch + 1)) ;;
+            *)
+              echo "Invalid version input"; exit 1 ;;
+          esac
+          new_tag="v$major.$minor.$patch"
+          echo "Next tag: $new_tag"
+          echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create Git tag
+        run: |
+          git tag ${{ steps.versioning.outputs.new_tag }}
+          git push origin ${{ steps.versioning.outputs.new_tag }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.versioning.outputs.new_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
