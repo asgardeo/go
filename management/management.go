@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	applications "github.com/asgardeo/go/management/applications"
 )
 
 // Client is the Asgardeo management API client.
@@ -21,6 +23,7 @@ type Client struct {
 	httpClient   *http.Client
 	token        string
 	ctx          context.Context // context for requests
+	appsClient   applications.ClientWithResponsesInterface
 }
 
 // Option configures the management client.
@@ -38,6 +41,17 @@ func New(baseURL string, opts ...Option) (*Client, error) {
 			return nil, err
 		}
 	}
+	var err error
+	authEditor := c.createAuthRequestEditor()
+	c.appsClient, err = applications.NewClientWithResponses(c.baseURL+"/api/server/v1",
+		applications.WithHTTPClient(c.httpClient),
+		applications.WithRequestEditorFn(authEditor),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create applications client: %w", err)
+	}
+
 	return c, nil
 }
 
@@ -68,42 +82,59 @@ func WithHTTPClient(hc *http.Client) Option {
 }
 
 // authenticate performs OAuth2 client credentials grant to retrieve an access token.
-func (c *Client) authenticate() error {
+func (c *Client) authenticate(ctx context.Context) (string, error) {
+
+	// Double check if token was acquired while waiting for lock
+	if c.token != "" {
+		return c.token, nil
+	}
+
+	// Use c.baseCtx or passed ctx for the HTTP request? Using passed ctx here.
+	reqCtx := ctx // Or c.baseCtx if auth should be independent of request context
+
 	data := url.Values{}
 	data.Set("grant_type", "client_credentials")
 	data.Set("client_id", c.clientID)
 	data.Set("client_secret", c.clientSecret)
-	data.Set("scope", "SYSTEM")
+	data.Set("scope", "SYSTEM") // Or make configurable if needed
 	endpoint := c.baseURL + "/oauth2/token"
-	resp, err := c.httpClient.PostForm(endpoint, data)
+
+	req, err := http.NewRequestWithContext(reqCtx, "POST", endpoint, strings.NewReader(data.Encode()))
 	if err != nil {
-		return err
+		return "", fmt.Errorf("failed to create auth request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("authentication request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("authentication failed: %s", body)
+		return "", fmt.Errorf("authentication failed (%d): %s", resp.StatusCode, body)
 	}
 	var result struct {
 		AccessToken string `json:"access_token"`
-		ExpiresIn   int    `json:"expires_in"`
-		TokenType   string `json:"token_type"`
+		// Add ExpiresIn, TokenType if needed for expiry checks
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return err
+		return "", fmt.Errorf("failed to decode auth response: %w", err)
 	}
 	if result.AccessToken == "" {
-		return errors.New("received empty access token")
+		return "", errors.New("authentication received empty access token")
 	}
-	c.token = result.AccessToken
-	return nil
+
+	c.token = result.AccessToken // Store the PARENT token
+	return c.token, nil
 }
 
 // exchangeTokenForSubOrg exchanges the parent organization token for a sub-organization token
 func (c *Client) exchangeTokenForSubOrg(orgID string) (string, error) {
 	if c.token == "" {
-		if err := c.authenticate(); err != nil {
+		if _, err := c.authenticate(context.TODO()); err != nil {
 			return "", fmt.Errorf("failed to authenticate to get base token for exchange: %w", err)
 		}
 	}
@@ -163,7 +194,7 @@ func (c *Client) exchangeTokenForSubOrg(orgID string) (string, error) {
 // doRequest wraps HTTP requests with authentication and JSON handling.
 func (c *Client) doRequest(req *http.Request, v interface{}) error {
 	if c.token == "" {
-		if err := c.authenticate(); err != nil {
+		if _, err := c.authenticate(context.TODO()); err != nil {
 			return err
 		}
 	}
@@ -267,15 +298,45 @@ func (c *Client) doSubOrgRequest(orgID string, method, path string, body interfa
 	return nil
 }
 
+func (c *Client) ensureValidParentToken(ctx context.Context) (string, error) {
+
+	token := c.token
+
+	if token != "" { // Assume valid if present (simplistic check)
+		return token, nil
+	}
+
+	// If no token, authenticate (which acquires the write lock)
+	return c.authenticate(ctx)
+}
+
+// --- Request Interceptor ---
+
+// createAuthRequestEditor returns a RequestEditorFn that handles authentication.
+func (c *Client) createAuthRequestEditor() func(ctx context.Context, req *http.Request) error {
+	return func(ctx context.Context, req *http.Request) error {
+		var bearerToken string
+		var err error
+
+		bearerToken, err = c.ensureValidParentToken(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get parent organization token: %w", err)
+		}
+		// Add the Authorization header
+		req.Header.Set("Authorization", "Bearer "+bearerToken)
+		return nil
+	}
+}
+
 // Applications returns an ApplicationService to manage applications.
 func (c *Client) Applications() *ApplicationService {
-	return &ApplicationService{client: c}
+	return &ApplicationService{client: c.appsClient}
 }
 
 // SubOrgApplications returns a SubOrgApplicationService to manage applications in a sub-organization
-func (c *Client) SubOrgApplications() *SubOrgApplicationService {
-	return &SubOrgApplicationService{client: c}
-}
+// func (c *Client) SubOrgApplications() *SubOrgApplicationService {
+// 	return &SubOrgApplicationService{client: c}
+// }
 
 func (c *Client) Organizations() *OrganizationService {
 	return &OrganizationService{client: c}
