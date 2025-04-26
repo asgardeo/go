@@ -40,7 +40,7 @@ jobs:
           IFS='.' read -r major minor patch <<< "${{ steps.get_latest.outputs.latest_tag }}"
           case "${{ github.event.inputs.version }}" in
             major)
-              major=$((major + 1)); minor=0; patch=0 ;;
+              major=v$((major + 1)); minor=0; patch=0 ;;
             minor)
               minor=$((minor + 1)); patch=0 ;;
             patch)
@@ -48,7 +48,7 @@ jobs:
             *)
               echo "Invalid version input"; exit 1 ;;
           esac
-          new_tag="v$major.$minor.$patch"
+          new_tag="$major.$minor.$patch"
           echo "Next tag: $new_tag"
           echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
 
