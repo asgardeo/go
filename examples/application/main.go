@@ -22,14 +22,14 @@ func main() {
 		)
 
 	// Create a client with the client credentials configuration
-	client, err := sdk.NewClient(cfg)
+	client, err := sdk.New(cfg)
 	if err != nil {
 		log.Fatalf("Failed to create SDK client: %v", err)
 	}
 
 	// Use the client with token authentication
 	ctx := context.Background()
-	apps, err := client.ApplicationClient.List(ctx, 10, 0)
+	apps, err := client.Application.List(ctx, 10, 0)
 	if err != nil {
 		log.Printf("Error listing users: %v", err)
 	} else {

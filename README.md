@@ -40,14 +40,14 @@ func main() {
         )
 
     // Initialize the SDK client
-    client, err := sdk.NewClient(cfg)
+    client, err := sdk.New(cfg)
     if err != nil {
         log.Fatalf("failed to initialize SDK client: %v", err)
     }
 
     // List applications
     ctx := context.Background()
-    resp, err := client.ApplicationClient.List(ctx, 10, 0)
+    resp, err := client.Application.List(ctx, 10, 0)
     if err != nil {
         log.Fatalf("failed to list applications: %v", err)
     }

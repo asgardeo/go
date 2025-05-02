@@ -7,12 +7,12 @@ import (
 
 // Client is the main SDK client that provides access to all service clients
 type Client struct {
-	Config            *config.ClientConfig
-	ApplicationClient *application.ApplicationClient
+	Config      *config.ClientConfig
+	Application *application.ApplicationClient
 }
 
 // NewClient creates a new SDK client with the given configuration
-func NewClient(cfg *config.ClientConfig) (*Client, error) {
+func New(cfg *config.ClientConfig) (*Client, error) {
 
 	appClient, err := application.New(cfg)
 	if err != nil {
@@ -20,7 +20,7 @@ func NewClient(cfg *config.ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		Config:            cfg,
-		ApplicationClient: appClient,
+		Config:      cfg,
+		Application: appClient,
 	}, nil
 }
