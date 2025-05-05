@@ -24,14 +24,13 @@ import (
 	"log"
 	"time"
 
-	"github.com/asgardeo/go/pkg/application"
 	"github.com/asgardeo/go/pkg/config"
 	"github.com/asgardeo/go/pkg/sdk"
 )
 
 func main() {
 
-	// Create a configuration with a client credentials grant type
+	// Initialize the client configurations.
 	cfg := config.DefaultClientConfig().
 		WithBaseURL("https://api.asgardeo.io/t/<tenant-domain>").
 		WithTimeout(10*time.Second).
@@ -40,36 +39,44 @@ func main() {
 			"client_secret",
 		)
 
-	// Create a client with the client credentials configuration
+	// Create a client with the given configurations.
 	client, err := sdk.New(cfg)
 	if err != nil {
 		log.Fatalf("Failed to create SDK client: %v", err)
 	}
 
-	// Use the client with token authentication
+	// Use the client with token authentication.
 	ctx := context.Background()
 
-	// List applications.
-	apps, err := client.Application.List(ctx, 10, 0)
+	// List API resources.
+	apiResources, err := client.APIResource.List(ctx, nil)
 	if err != nil {
-		log.Printf("Error listing users: %v", err)
+		log.Printf("Error listing API Resources: %v", err)
 	} else {
-		fmt.Printf("Found %d applications\n", len(*apps.Applications))
+		fmt.Printf("Found %d API Resources.\n", len(*apiResources.APIResources))
 	}
 
-	// Authorize API.
-	id := "api_resource_uuid"
-	policyIdentifier := "RBAC"
-	scopes := []string{"scope1", "scope2"}
-	authorizedAPI := application.AddAuthorizedAPIJSONRequestBody{
-		Id:               &id,
-		PolicyIdentifier: &policyIdentifier,
-		Scopes:           &scopes,
-	}
-	_, err = client.Application.AuthorizeAPI(ctx, "app_uuid", authorizedAPI)
+	// Get a specific API resource by ID.
+	apiResource, err := client.APIResource.Get(ctx, "api_resource_uuid")
 	if err != nil {
-		log.Printf("Error authorizing API: %v", err)
+		log.Printf("Error getting API Resource: %v", err)
 	} else {
-		log.Printf("API authorized successfully.")
+		fmt.Printf("Found API Resource: %s\n", apiResource.Name)
+	}
+
+	// Get API Resources by name.
+	apiResourcesByName, err := client.APIResource.GetByName(ctx, "api_resource_name")
+	if err != nil {
+		log.Printf("Error getting API Resources by name: %v", err)
+	} else {
+		fmt.Printf("Found %d API Resources by name.\n", len(*apiResourcesByName))
+	}
+
+	// Get API Resource By Identifier.
+	apiResourcesByIdentifier, err := client.APIResource.GetByIdentifier(ctx, "api_resource_identifier")
+	if err != nil {
+		log.Printf("Error getting API Resource by identifier: %v", err)
+	} else {
+		fmt.Printf("Found API Resource by identifier: %s\n", apiResourcesByIdentifier.Name)
 	}
 }
