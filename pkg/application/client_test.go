@@ -83,11 +83,3 @@ func TestListApplications(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Len(t, *resp.Applications, 2)
 }
-
-func intPtr(i int) *int {
-	return &i
-}
-
-func stringPtr(s string) *string {
-	return &s
-}
