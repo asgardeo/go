@@ -70,3 +70,14 @@ func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*Appli
 	}
 	return resp.JSON200, nil
 }
+
+func (c *ApplicationClient) AuthorizeAPI(ctx context.Context, appID string, authorizedAPI AddAuthorizedAPIJSONRequestBody) (*http.Response, error) {
+	resp, err := c.apiClient.AddAuthorizedAPIWithResponse(ctx, appID, authorizedAPI)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to authorize api: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Failed to authorize api: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return &http.Response{}, nil
+}
