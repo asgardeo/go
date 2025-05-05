@@ -49,34 +49,34 @@ func main() {
 	ctx := context.Background()
 
 	// List API resources.
-	apis, err := client.APIResource.List(ctx, nil)
+	apiResources, err := client.APIResource.List(ctx, nil)
 	if err != nil {
 		log.Printf("Error listing API Resources: %v", err)
 	} else {
-		fmt.Printf("Found %d API Resources.\n", len(*apis.APIResources))
+		fmt.Printf("Found %d API Resources.\n", len(*apiResources.APIResources))
 	}
 
 	// Get a specific API resource by ID.
-	api, err := client.APIResource.Get(ctx, "1f616716-f518-48a5-a497-5eb0e2200b4f")
+	apiResource, err := client.APIResource.Get(ctx, "api_resource_uuid")
 	if err != nil {
 		log.Printf("Error getting API Resource: %v", err)
 	} else {
-		fmt.Printf("Found API Resource: %s\n", *&api.Name)
+		fmt.Printf("Found API Resource: %s\n", apiResource.Name)
 	}
 
 	// Get API Resources by name.
-	apisByName, err := client.APIResource.GetByName(ctx, "SCIM2 Users API")
+	apiResourcesByName, err := client.APIResource.GetByName(ctx, "api_resource_name")
 	if err != nil {
 		log.Printf("Error getting API Resources by name: %v", err)
 	} else {
-		fmt.Printf("Found %d API Resources by name.\n", len(*apisByName))
+		fmt.Printf("Found %d API Resources by name.\n", len(*apiResourcesByName))
 	}
 
 	// Get API Resource By Identifier.
-	apiByIdentifier, err := client.APIResource.GetByIdentifier(ctx, "/scim2/Users")
+	apiResourcesByIdentifier, err := client.APIResource.GetByIdentifier(ctx, "api_resource_identifier")
 	if err != nil {
 		log.Printf("Error getting API Resource by identifier: %v", err)
 	} else {
-		fmt.Printf("Found API Resource by identifier: %s\n", *&apiByIdentifier.Name)
+		fmt.Printf("Found API Resource by identifier: %s\n", apiResourcesByIdentifier.Name)
 	}
 }

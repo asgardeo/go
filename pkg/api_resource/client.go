@@ -29,8 +29,8 @@ import (
 
 // APIResourceClient is a wrapper around the generated client for the API Resource Management API.
 type APIResourceClient struct {
-	config    *config.ClientConfig
-	apiClient *ClientWithResponses
+	config            *config.ClientConfig
+	apiResourceClient *ClientWithResponses
 }
 
 // Creates a new API Resource Management API client.
@@ -43,7 +43,7 @@ func New(cfg *config.ClientConfig) (*APIResourceClient, error) {
 		return editorFn(ctx, req)
 	}
 
-	apiClient, err := NewClientWithResponses(
+	apiResourceClient, err := NewClientWithResponses(
 		cfg.BaseURL+"/api/server/v1",
 		WithHTTPClient(cfg.HTTPClient),
 		WithRequestEditorFn(typedAuthEditorFn),
@@ -54,13 +54,13 @@ func New(cfg *config.ClientConfig) (*APIResourceClient, error) {
 	}
 
 	return &APIResourceClient{
-		config:    cfg,
-		apiClient: apiClient,
+		config:            cfg,
+		apiResourceClient: apiResourceClient,
 	}, nil
 }
 
 func (c *APIResourceClient) List(ctx context.Context, params *GetAPIResourcesParams) (*APIResourceListResponse, error) {
-	resp, err := c.apiClient.GetAPIResourcesWithResponse(ctx, params)
+	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list api resources: %w", err)
 	}
@@ -71,7 +71,7 @@ func (c *APIResourceClient) List(ctx context.Context, params *GetAPIResourcesPar
 }
 
 func (c *APIResourceClient) Get(ctx context.Context, id string) (*APIResourceResponse, error) {
-	resp, err := c.apiClient.GetApiResourcesApiResourceIdWithResponse(ctx, id)
+	resp, err := c.apiResourceClient.GetApiResourcesApiResourceIdWithResponse(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get api resource: %w", err)
 	}
@@ -86,7 +86,7 @@ func (c *APIResourceClient) GetByName(ctx context.Context, name string) (*[]APIR
 	params := GetAPIResourcesParams{
 		Filter: &filter,
 	}
-	resp, err := c.apiClient.GetAPIResourcesWithResponse(ctx, &params)
+	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, &params)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list api resources: %w", err)
 	}
@@ -103,7 +103,7 @@ func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier stri
 	params := GetAPIResourcesParams{
 		Filter: &filter,
 	}
-	resp, err := c.apiClient.GetAPIResourcesWithResponse(ctx, &params)
+	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, &params)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get api resource: %w", err)
 	}
@@ -118,7 +118,7 @@ func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier stri
 }
 
 func (c *APIResourceClient) Create(ctx context.Context, apiResource *AddAPIResourceJSONRequestBody) (*AddAPIResourceResponse, error) {
-	resp, err := c.apiClient.AddAPIResourceWithResponse(ctx, *apiResource)
+	resp, err := c.apiResourceClient.AddAPIResourceWithResponse(ctx, *apiResource)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create api resource: %w", err)
 	}

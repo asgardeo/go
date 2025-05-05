@@ -58,9 +58,9 @@ func main() {
 	}
 
 	// Authorize API.
-	id := "1f616716-f518-48a5-a497-5eb0e2200b4f"
+	id := "api_resource_uuid"
 	policyIdentifier := "RBAC"
-	scopes := []string{"internal_user_mgt_view", "internal_user_mgt_list"}
+	scopes := []string{"scope1", "scope2"}
 	authorizedAPI := application.AddAuthorizedAPIJSONRequestBody{
 		Id:               &id,
 		PolicyIdentifier: &policyIdentifier,
