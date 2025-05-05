@@ -41,12 +41,32 @@ func New(cfg *config.ClientConfig) (*APIResourceClient, error) {
 	}, nil
 }
 
-func (c *APIResourceClient) List(ctx context.Context, limit *int, before *string, after *string, filter *string) (*APIResourceListResponse, error) {
+func (c *APIResourceClient) List(ctx context.Context, params *GetAPIResourcesParams) (*APIResourceListResponse, error) {
+	resp, err := c.apiClient.GetAPIResourcesWithResponse(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list api resources: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Failed to list api resources: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+func (c *APIResourceClient) Get(ctx context.Context, id string) (*APIResourceResponse, error) {
+	resp, err := c.apiClient.GetApiResourcesApiResourceIdWithResponse(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get api resource: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+func (c *APIResourceClient) GetByName(ctx context.Context, name string) (*[]APIResourceListItem, error) {
+	filter := Filter(fmt.Sprintf("name eq %s", name))
 	params := GetAPIResourcesParams{
-		Limit:  limit,
-		Before: before,
-		After:  after,
-		Filter: filter,
+		Filter: &filter,
 	}
 	resp, err := c.apiClient.GetAPIResourcesWithResponse(ctx, &params)
 	if err != nil {
@@ -55,7 +75,28 @@ func (c *APIResourceClient) List(ctx context.Context, limit *int, before *string
 	if resp.StatusCode() != http.StatusOK {
 		return nil, fmt.Errorf("Failed to list api resources: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
-	return resp.JSON200, nil
+	// Get the list of API resources from the response.
+	apiResources := resp.JSON200.APIResources
+	return apiResources, nil
+}
+
+func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier string) (*APIResourceListItem, error) {
+	filter := Filter(fmt.Sprintf("identifier eq %s", identifier))
+	params := GetAPIResourcesParams{
+		Filter: &filter,
+	}
+	resp, err := c.apiClient.GetAPIResourcesWithResponse(ctx, &params)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get api resource: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	// Since the identifier is unique, we can return the first item in the list.
+	if len(*resp.JSON200.APIResources) == 0 {
+		return nil, fmt.Errorf("No API resource found with identifier: %s", identifier)
+	}
+	return &(*resp.JSON200.APIResources)[0], nil
 }
 
 func (c *APIResourceClient) Create(ctx context.Context, apiResource *AddAPIResourceJSONRequestBody) (*AddAPIResourceResponse, error) {
