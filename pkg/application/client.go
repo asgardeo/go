@@ -26,7 +26,7 @@ type ApplicationBaseModel struct {
 	ClientId         string `json:"client_id"`
 	ClientSecret     string `json:"client_secret"`
 	RedirectURL      string `json:"redirect_url"`
-	AuthorizedScopes string `json:"authorized_scopes"`
+	AuthorizedScopes string `json:"scope"`
 }
 
 // New creates a new Application Management API client
@@ -120,44 +120,86 @@ func (c *ApplicationClient) CreateM2MApp(ctx context.Context, name string) (*App
 	return c.processCreateConfidentialClientAppResponse(ctx, resp, name)
 }
 
-// GetApplicationByName finds an application by name and returns its details
-func (c *ApplicationClient) GetApplicationByName(ctx context.Context, name string) (*ApplicationBaseModel, error) {
-    filter := fmt.Sprintf("name eq %s", name)
-    excludeSystemPortals := true
-    
-    params := GetAllApplicationsParams{
-        Filter:              &filter,
-        ExcludeSystemPortals: &excludeSystemPortals,
-        Attributes:          stringPtr("advancedConfigurations,templateId,clientId"),
-    }
-    
-    resp, err := c.apiClient.GetAllApplicationsWithResponse(ctx, &params)
-    if err != nil {
-        return nil, fmt.Errorf("failed to find application: %w", err)
-    }
-    
-    if resp.StatusCode() != http.StatusOK {
-        return nil, fmt.Errorf("failed to find application: status %d, body: %s", 
-            resp.StatusCode(), string(resp.Body))
-    }
-    
-    if resp.JSON200 == nil || resp.JSON200.Applications == nil || len(*resp.JSON200.Applications) == 0 {
-        return nil, fmt.Errorf("application with name '%s' not found", name)
-    }
-    
-    var targetApp *ApplicationListItem
-    for _, app := range *resp.JSON200.Applications {
+// GetByName finds an application by name and returns its details
+// todo: improve application details being fetched beyond appId, name, clientId and clientSecret
+func (c *ApplicationClient) GetByName(ctx context.Context, name string) (*ApplicationBaseModel, error) {
+	filter := fmt.Sprintf("name eq %s", name)
+	excludeSystemPortals := true
+
+	params := GetAllApplicationsParams{
+		Filter:               &filter,
+		ExcludeSystemPortals: &excludeSystemPortals,
+		Attributes:           stringPtr("templateId,clientId"),
+	}
+
+	resp, err := c.apiClient.GetAllApplicationsWithResponse(ctx, &params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find application: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to find application: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
+
+	if resp.JSON200 == nil || resp.JSON200.Applications == nil || len(*resp.JSON200.Applications) == 0 {
+		return nil, fmt.Errorf("application with name '%s' not found", name)
+	}
+
+	var targetApp *ApplicationListItem
+	for _, app := range *resp.JSON200.Applications {
 		if app.Name != nil && *app.Name == name {
-            targetApp = &app
-            break
-        }
-    }
-    
-    if targetApp == nil {
-        return nil, fmt.Errorf("application with name '%s' not found", name)
-    }
-    
-    return c.getApplicationDetails(ctx, *targetApp.Id)
+			targetApp = &app
+			break
+		}
+	}
+
+	if targetApp == nil {
+		return nil, fmt.Errorf("application with name '%s' not found", name)
+	}
+
+	return c.getApplicationDetails(ctx, *targetApp.Id)
+}
+
+// GetByClienId finds an application by clientId and returns its details
+// todo: improve application details being fetched beyond appId, name, clientId and clientSecret
+func (c *ApplicationClient) GetByClienId(ctx context.Context, clientId string) (*ApplicationBaseModel, error) {
+	filter := fmt.Sprintf("clientId eq %s", clientId)
+	excludeSystemPortals := true
+
+	params := GetAllApplicationsParams{
+		Filter:               &filter,
+		ExcludeSystemPortals: &excludeSystemPortals,
+		Attributes:           stringPtr("templateId,clientId,"),
+	}
+
+	resp, err := c.apiClient.GetAllApplicationsWithResponse(ctx, &params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find application: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to find application: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
+
+	if resp.JSON200 == nil || resp.JSON200.Applications == nil || len(*resp.JSON200.Applications) == 0 {
+		return nil, fmt.Errorf("application with clientId '%s' not found", clientId)
+	}
+
+	var targetApp *ApplicationListItem
+	for _, app := range *resp.JSON200.Applications {
+		if app.ClientId != nil && *app.ClientId == clientId {
+			targetApp = &app
+			break
+		}
+	}
+
+	if targetApp == nil {
+		return nil, fmt.Errorf("application with name '%s' not found", clientId)
+	}
+
+	return c.getApplicationDetails(ctx, *targetApp.Id)
 }
 
 func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (ApplicationModel, error) {
@@ -265,7 +307,7 @@ func (c *ApplicationClient) buildMobileAppRequest(name, redirectURL string) (App
 					UserAccessTokenExpiryInSeconds:        int64Ptr(3600),
 					ValidateTokenBinding:                  boolPtr(false),
 				},
-				
+
 				GrantTypes:     []string{"authorization_code", "refresh_token"},
 				CallbackURLs:   &[]string{redirectURL},
 				AllowedOrigins: &[]string{}, // Empty for mobile apps
@@ -294,8 +336,8 @@ func (c *ApplicationClient) buildM2MAppRequest(name string) (ApplicationModel, e
 		Name: name,
 		InboundProtocolConfiguration: &InboundProtocols{
 			Oidc: &OpenIDConnectConfiguration{
-				GrantTypes: []string{"client_credentials"},
-				PublicClient: boolPtr(false), 
+				GrantTypes:   []string{"client_credentials"},
+				PublicClient: boolPtr(false),
 			},
 		},
 		AuthenticationSequence: &AuthenticationSequence{
@@ -369,10 +411,10 @@ func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx conte
 	}
 
 	return &ApplicationBaseModel{
-		Id:               appID,
-		Name:             name,
-		ClientId:         *oauthDetails.ClientId,
-		ClientSecret:     *oauthDetails.ClientSecret,
+		Id:           appID,
+		Name:         name,
+		ClientId:     *oauthDetails.ClientId,
+		ClientSecret: *oauthDetails.ClientSecret,
 	}, nil
 }
 
@@ -413,35 +455,35 @@ func (c *ApplicationClient) fetchApplicationDetails(ctx context.Context, appID s
 }
 
 func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID string) (*ApplicationBaseModel, error) {
-    appDetails, err := c.fetchApplicationDetails(ctx, appID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get application details: %w", err)
-    }
-    
-    result := &ApplicationBaseModel{
-        Id:       appID,
-        Name:     appDetails.Name,
-    }
-    
-    if appDetails.ClientId != nil {
-        result.ClientId = *appDetails.ClientId
-    }
-    
-    isM2MApp := false
-    if appDetails.TemplateId != nil && *appDetails.TemplateId == "m2m-application" {
-        isM2MApp = true
-    } 
-    
-    if isM2MApp {
-        oauthDetails, err := c.fetchInboundOAuthDetails(ctx, appID)
-        if err != nil {
-            return nil, fmt.Errorf("failed to get OAuth details: %w", err)
-        }
-        
-        if oauthDetails.ClientSecret != nil {
-            result.ClientSecret = *oauthDetails.ClientSecret
-        }
-    }
-    
-    return result, nil
+	appDetails, err := c.fetchApplicationDetails(ctx, appID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application details: %w", err)
+	}
+
+	result := &ApplicationBaseModel{
+		Id:   appID,
+		Name: appDetails.Name,
+	}
+
+	if appDetails.ClientId != nil {
+		result.ClientId = *appDetails.ClientId
+	}
+
+	isM2MApp := false
+	if appDetails.TemplateId != nil && *appDetails.TemplateId == "m2m-application" {
+		isM2MApp = true
+	}
+
+	if isM2MApp {
+		oauthDetails, err := c.fetchInboundOAuthDetails(ctx, appID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get OAuth details: %w", err)
+		}
+
+		if oauthDetails.ClientSecret != nil {
+			result.ClientSecret = *oauthDetails.ClientSecret
+		}
+	}
+
+	return result, nil
 }
