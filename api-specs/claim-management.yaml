@@ -1,0 +1,402 @@
+openapi: 3.0.0
+info:
+  description: This is the RESTful API for claims management related operations in WSO2 Identity Server. This API allows
+    adding, retrieving, updating, and deleting local/external claims and claim dialects.
+  version: "v1"
+  title: WSO2 Identity Server - Claim Admin API
+  contact:
+    name: "WSO2 Identity Server"
+    url: "https://wso2.com/identity-and-access-management"
+    email: "architecture@wso2.org"
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+
+servers:
+  - url: https://is.wso2.com/t/{tenant-domain}/api/server/v1
+    variables:
+      tenant-domain:
+        default: "carbon.super"
+
+tags:
+  - name: management
+    description: Secured Admin-only calls
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://localhost:9443/oauth/authorize
+          tokenUrl: https://localhost:9443/oauth/token
+          scopes:
+            read: Grants read access
+            write: Grants write access
+            admin: Grants read and write access to administrative information
+
+  parameters:
+    limitQueryParam:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of records to return. <br><b> This option is not yet supported. </b>
+      schema:
+        type: integer
+        format: int32
+    offsetQueryParam:
+      name: offset
+      in: query
+      required: false
+      description: Number of records to skip for pagination. <br><b> This option is not yet supported. </b>
+      schema:
+        type: integer
+        format: int32
+    filterQueryParam:
+      name: filter
+      in: query
+      required: false
+      description: Condition to filter the retrieval of records. <br><b> This option is not yet supported. </b>
+      schema:
+        type: string
+    sortQueryParam:
+      name: sort
+      in: query
+      required: false
+      description: Define the order by which the retrieved records should be sorted. <br><b> This option is not yet supported. </b>
+      schema:
+        type: string
+    attributesQueryParam:
+      name: attributes
+      in: query
+      required: false
+      description: Define only the required attributes to be sent in the response object. <br><b> This option is not yet supported. </b>
+      schema:
+        type: string
+    excludeIdentityClaimsQueryParam:
+      name: exclude-identity-claims
+      in: query
+      required: false
+      description: Exclude identity claims when listing local claims.
+      schema:
+        type: boolean
+    excludeHiddenClaimsQueryParam:
+      name: exclude-hidden-claims
+      in: query
+      required: false
+      description: Exclude hidden claims when listing local claims.
+      schema:
+        type: boolean
+    dialectIdPathParam:
+      name: dialect-id
+      in: path
+      required: true
+      description: Id of the claim dialect.
+      schema:
+        type: string
+    claimIdPathParam:
+      name: claim-id
+      in: path
+      required: true
+      description: Id of the claim.
+      schema:
+        type: string
+    fileTypeHeaderParam:
+      name: Accept
+      in: header
+      required: false
+      description: |
+        Content type of the file.
+      schema:
+        type: string
+        enum:
+          - application/json
+          - application/xml
+          - application/yaml
+          - application/x-yaml
+          - text/yaml
+          - text/xml
+          - text/json
+        default: application/yaml
+    fileParam:
+      name: file
+      in: formData
+      required: true
+      description: The file to be uploaded.
+      schema:
+        type: string
+        format: binary
+    preserveClaimsParam:
+      name: preserveClaims
+      in: query
+      required: false
+      description: Specify whether to merge and preserve the claims or completely replace the existing claims set.
+      schema:
+        type: boolean
+        default: false
+
+  schemas:
+    LocalClaimRes:
+      description: Local claim response.
+      allOf:
+        - $ref: '#/components/schemas/ClaimRes'
+        - type: object
+          properties:
+            id:
+              type: string
+              description: claim ID.
+              example: "394b8adcce24c64a8a09a8d80abf8c337bd253de"
+            claimURI:
+              type: string
+              description: A unique URI specific to the claim.
+              example: "http://wso2.org/claims/username"
+            dialectURI:
+              type: string
+              description: URI of the claim dialect.
+              example: "http://wso2.org/claims"
+            description:
+              type: string
+              description: Description of the claim.
+              example: "Some description about the claim."
+            displayOrder:
+              type: integer
+              description: The order in which the claim is displayed among other claims under the same dialect.
+              example: 10
+            displayName:
+              type: string
+              description: Name of the claim to be displayed in the UI.
+              example: "Username"
+            readOnly:
+              type: boolean
+              description: Specifies if the claim is read-only.
+              example: true
+            regEx:
+              type: string
+              description: Regular expression used to validate inputs.
+              example: "^([a-zA-Z)$"
+            required:
+              type: boolean
+              description: Specifies if the claim is required for user registration.
+              example: true
+            supportedByDefault:
+              type: boolean
+              description: Specifies if the claim will be prompted during user registration and displayed on the user profile.
+              example: true
+            multiValued:
+              type: boolean
+              description: Specifies if the claim can hold multiple values.
+              example: true
+            uniquenessScope:
+              type: string
+              description: Specifies the scope of uniqueness validation for the claim value.
+              enum:
+                - NONE
+                - WITHIN_USERSTORE
+                - ACROSS_USERSTORES
+              example: "NONE"
+            sharedProfileValueResolvingMethod:
+              type: string
+              description: Specifies claim value resolving method for shared user profile.
+              enum:
+                - FromOrigin
+                - FromSharedProfile
+                - FromFirstFoundInHierarchy
+              example: "FromOrigin"
+            attributeMapping:
+              type: array
+              description: Userstore attribute mappings.
+              items:
+                $ref: '#/components/schemas/AttributeMapping'
+            properties:
+              type: array
+              description: Define any additional properties if required.
+              items:
+                $ref: '#/components/schemas/Property'
+            profiles:
+              $ref: '#/components/schemas/Profiles'
+    ClaimRes:
+      type: object
+      description: Claim response.
+      x-wso2-json-ignore-unknown: true
+    AttributeMapping:
+      type: object
+      required:
+      - mappedAttribute
+      - userstore
+      description: Claim userstore attribute mapping.
+      properties:
+        mappedAttribute:
+          type: string
+          description: Userstore attribute to be mapped to.
+          example: "username"
+        userstore:
+          type: string
+          description: Userstore domain name.
+          example: "SECONDARY"
+    #-----------------------------------------------------
+    # Profiles Object
+    #-----------------------------------------------------
+    Profiles:
+      type: object
+      description: Attribute profiles.
+      additionalProperties:
+        $ref: '#/components/schemas/AttributeProfile'
+      example:
+        console:
+          readOnly: false
+          required: true
+          supportedByDefault: true
+        endUser:
+          readOnly: false
+          required: false
+          supportedByDefault: true
+        selfRegister:
+          readOnly: true
+          required: false
+          supportedByDefault: false
+
+    AttributeProfile:
+      type: object
+      properties:
+        readOnly:
+          type: boolean
+          example: false
+        required:
+          type: boolean
+          example: false
+        supportedByDefault:
+          type: boolean
+          example: true
+
+    #-----------------------------------------------------
+    # Property Object
+    #-----------------------------------------------------
+    Property:
+      type: object
+      required:
+      - key
+      - value
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+      Link:
+        type: object
+        properties:
+          href:
+            type: string
+            description: Relative path to the target resource.
+            example: "394b8adcce24c64a8a09a8d80abf8c337bd253de/claims"
+          rel:
+            type: string
+            description: Describes how the current context is related to the target resource.
+            example: "claims"
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: "AAA-00000"
+        message:
+          type: string
+          example: "Some Error Message"
+        description:
+          type: string
+          example: "Some Error Description"
+        traceId:
+          type: string
+          example: "e0fbcfeb-3617-43c4-8dd0-7b7d38e13047"
+
+  responses:
+    NotFound:
+      description: The specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized access.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      description: Internal Server Error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotImplemented:
+      description: Not Implemented.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InvalidInput:
+      description: Invalid input request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Element Already Exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Created:
+      description: Item Created.
+      headers:
+        Location:
+          description: URI of the created resource.
+          schema:
+            type: string
+    OK:
+      description: Request succeeded.
+      content:
+        application/json:
+          schema:
+            type: object
+    NoContent:
+      description: No Content.
+    Forbidden:
+      description: Resource Forbidden.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+paths:
+  /claim-dialects/local/claims:
+    get:
+      tags:
+        - management
+      summary: Retrieve local claims.
+      operationId: getLocalClaims
+      description: Retrieve local claims. <br>
+        <b>Permission required:</b> <br>
+              * /permission/admin/manage/identity/claimmgt/metadata/view <br>
+        <b>Scope required:</b> <br>
+              * internal_claim_meta_view
+      responses:
+        '200':
+          description: Local claims.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LocalClaimRes'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
