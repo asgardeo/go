@@ -72,4 +72,49 @@ func main() {
 	} else {
 		log.Printf("API authorized successfully.")
 	}
+
+	// Generate a login flow.
+	prompt := "Username and password as the first step and email OTP as the second step."
+	loginFlowResponse, err := client.Application.GenerateLoginFlow(ctx, prompt)
+	fmt.Printf("Login flow response: %+v\n", loginFlowResponse)
+	if err != nil {
+		log.Printf("Error generating login flow: %v", err)
+		return
+	}
+	log.Printf("Login flow initiated. Flow ID: %s", *loginFlowResponse.OperationId)
+
+	// Poll for the login flow generation status.
+	flowId := loginFlowResponse.OperationId
+	var statusResponse *application.LoginFlowStatusResponse
+	for {
+		statusResponse, err = client.Application.GetLoginFlowGenerationStatus(ctx, *flowId)
+		if err != nil {
+			log.Printf("Error getting login flow generation status: %v", err)
+			return
+		}
+		if statusResponse.Status != nil {
+			allTrue := true
+			for _, v := range *statusResponse.Status {
+				if v != true {
+					allTrue = false
+					break
+				}
+			}
+			if allTrue {
+				log.Printf("Login flow generation completed successfully.")
+				break
+			}
+		}
+		// If the status is not complete, wait and poll again.
+		log.Printf("Login flow generation in progress. Retrying...")
+		time.Sleep(2 * time.Second)
+	}
+
+	// Retrieve the login flow generation result.
+	resultResponse, err := client.Application.GetLoginFlowGenerationResult(ctx, *flowId)
+	if err != nil {
+		log.Printf("Error getting login flow generation result: %v", err)
+		return
+	}
+	log.Printf("Login flow generation result: %+v", resultResponse.Data)
 }

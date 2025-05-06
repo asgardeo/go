@@ -23,8 +23,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/asgardeo/go/pkg/authenticator"
+	"github.com/asgardeo/go/pkg/claim"
 	"github.com/asgardeo/go/pkg/common"
 	"github.com/asgardeo/go/pkg/config"
+	"github.com/asgardeo/go/pkg/identity_provider"
 )
 
 const (
@@ -515,4 +518,159 @@ func (c *ApplicationClient) AuthorizeAPI(ctx context.Context, appID string, auth
 		return nil, fmt.Errorf("Failed to authorize api: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return &http.Response{}, nil
+}
+
+func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponse, error) {
+
+	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to build available authenticators: %w", err)
+	}
+
+	userClaims, err := c.buildUserClaimList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to build user claims: %w", err)
+	}
+	loginFlowGenerateRequest := LoginFlowGenerateRequest{
+		AvailableAuthenticators: &availableAuthenticators,
+		UserClaims:              &userClaims,
+		UserQuery:               &prompt,
+	}
+	resp, err := c.apiClient.GenerateLoginFlowWithResponse(ctx, loginFlowGenerateRequest)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate login flow: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponse, error) {
+	resp, err := c.apiClient.GetLoginFlowGenerationStatusWithResponse(ctx, flowId)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get login flow generation status: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get login flow generation status: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponse, error) {
+	resp, err := c.apiClient.GetLoginFlowGenerationResultWithResponse(ctx, flowId)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get login flow generation result: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (map[string]interface{}, error) {
+	authenticatorClient, err := authenticator.New(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create authenticator client: %w", err)
+	}
+	localAuthenticators, err := authenticatorClient.ListLocalAuthenticators(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list local authenticators: %w", err)
+	}
+
+	var moderatedAuthenticators []interface{}
+	var secondFactorAuthenticators []interface{}
+	var recoveryAuthenticators []interface{}
+	for _, localAuthenticator := range *localAuthenticators {
+		description := ""
+		if localAuthenticator.Description != nil {
+			description = *localAuthenticator.Description
+		}
+		authenticatorData := map[string]interface{}{
+			"description": description,
+			"idp":         *localAuthenticator.Type,
+			"name":        *localAuthenticator.Name,
+		}
+
+		if authenticator.LocalAuthenticatorIDs.BackupCode == *localAuthenticator.Id {
+			recoveryAuthenticators = append(recoveryAuthenticators, authenticatorData)
+		} else if _, exists := authenticator.SecondFactorAuthenticatorIDs[*localAuthenticator.Id]; exists {
+			secondFactorAuthenticators = append(secondFactorAuthenticators, authenticatorData)
+		} else {
+			moderatedAuthenticators = append(moderatedAuthenticators, authenticatorData)
+		}
+	}
+
+	identityProviderClient, err := identity_provider.New(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create identity provider client: %w", err)
+	}
+	requiredAttributes := "federatedAuthenticators"
+	getIDPListParams := identity_provider.GetIDPsParams{
+		RequiredAttributes: &requiredAttributes,
+	}
+	idpList, err := identityProviderClient.List(ctx, &getIDPListParams)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list identity providers: %w", err)
+	}
+
+	var enterpriseAuthenticators []interface{}
+	var socialAuthenticators []interface{}
+	for _, idp := range *idpList.IdentityProviders {
+		federatedAuthenticators := idp.FederatedAuthenticators
+		defaultAuthenticatorId := federatedAuthenticators.DefaultAuthenticatorId
+		description := ""
+		if idp.Description == nil {
+			description = *idp.Description
+		}
+		// TODO: Currently, authenticator name is used as the idp name. Need to improve this in the future.
+		authenticatorData := map[string]interface{}{
+			"description": description,
+			"idp":         *idp.Name,
+			"name":        *idp.Name,
+		}
+
+		if _, exists := authenticator.SocialAuthenticatorIDs[*defaultAuthenticatorId]; exists {
+			socialAuthenticators = append(socialAuthenticators, authenticatorData)
+		} else {
+			enterpriseAuthenticators = append(enterpriseAuthenticators, authenticatorData)
+		}
+	}
+
+	availableAuthenticators := map[string]interface{}{
+		"enterprise":   enterpriseAuthenticators,
+		"local":        moderatedAuthenticators,
+		"recovery":     recoveryAuthenticators,
+		"secondFactor": secondFactorAuthenticators,
+		"social":       socialAuthenticators,
+	}
+	return availableAuthenticators, nil
+}
+
+func (c *ApplicationClient) buildUserClaimList(ctx context.Context) ([]map[string]interface{}, error) {
+	claimClient, err := claim.New(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create claim client: %w", err)
+	}
+
+	claims, err := claimClient.ListLocalClaims(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list local claims: %w", err)
+	}
+
+	if claims == nil || *claims == nil {
+		return nil, fmt.Errorf("Failed to list local claims: empty response")
+	}
+
+	userClaims := []map[string]interface{}{}
+	for _, claim := range *claims {
+		if claim.ClaimURI != nil && claim.Description != nil {
+			userClaims = append(userClaims, map[string]interface{}{
+				"claimURI":    *claim.ClaimURI,
+				"description": *claim.Description,
+			})
+		}
+	}
+
+	return userClaims, nil
 }

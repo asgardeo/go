@@ -5066,7 +5066,7 @@ func (r ImportApplicationForUpdateResponse) StatusCode() int {
 type GenerateLoginFlowResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON202      *LoginFlowGenerateResponse
+	JSON200      *LoginFlowGenerateResponse
 	JSON400      *Error
 	JSON401      *Error
 	JSON403      *Error
@@ -7144,12 +7144,12 @@ func ParseGenerateLoginFlowResponse(rsp *http.Response) (*GenerateLoginFlowRespo
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest LoginFlowGenerateResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON202 = &dest
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest Error

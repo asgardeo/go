@@ -21,14 +21,20 @@ package sdk
 import (
 	"github.com/asgardeo/go/pkg/api_resource"
 	"github.com/asgardeo/go/pkg/application"
+	"github.com/asgardeo/go/pkg/authenticator"
+	"github.com/asgardeo/go/pkg/claim"
 	"github.com/asgardeo/go/pkg/config"
+	"github.com/asgardeo/go/pkg/identity_provider"
 )
 
 // Client is the main SDK client that provides access to all service clients
 type Client struct {
-	Config      *config.ClientConfig
-	Application *application.ApplicationClient
-	APIResource *api_resource.APIResourceClient
+	Config           *config.ClientConfig
+	Application      *application.ApplicationClient
+	APIResource      *api_resource.APIResourceClient
+	IdentityProvider *identity_provider.IdentityProviderClient
+	Authenticator    *authenticator.AuthenticatorClient
+	Claim            *claim.ClaimClient
 }
 
 // NewClient creates a new SDK client with the given configuration
@@ -44,9 +50,27 @@ func New(cfg *config.ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
+	identityProviderClient, err := identity_provider.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	authenticatorClient, err := authenticator.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	claimClient, err := claim.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
-		Config:      cfg,
-		Application: appClient,
-		APIResource: apiResourceClient,
+		Config:           cfg,
+		Application:      appClient,
+		APIResource:      apiResourceClient,
+		IdentityProvider: identityProviderClient,
+		Authenticator:    authenticatorClient,
+		Claim:            claimClient,
 	}, nil
 }
