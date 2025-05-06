@@ -16,6 +16,7 @@ generate:
 	@mkdir -p pkg/application
 	@mkdir -p pkg/api_resource
 	@mkdir -p pkg/identity_provider
+	@mkdir -p pkg/authenticator
 	@oapi-codegen \
 		-package application \
 		-generate types,client \
@@ -31,6 +32,11 @@ generate:
 		-generate types,client \
 		-o pkg/identity_provider/client_gen.go \
 		api-specs/idp.yaml
+	@oapi-codegen \
+		-package authenticator \
+		-generate types,client \
+		-o pkg/authenticator/client_gen.go \
+		api-specs/authenticators.yaml
 	@echo "SDK generation complete."
 
 # Clean generated code
@@ -39,4 +45,5 @@ clean:
 	@rm -f pkg/application/client_gen.go
 	@rm -f pkg/api_resource/client_gen.go
 	@rm -f pkg/identity_provider/client_gen.go
+	@rm -f pkg/authenticator/client_gen.go
 	@echo "Cleaning complete."
