@@ -74,7 +74,7 @@ func main() {
 	}
 
 	// Generate a login flow.
-	prompt := "user_prompt"
+	prompt := "Username and password as the first step and email OTP as the second step."
 	loginFlowResponse, err := client.Application.GenerateLoginFlow(ctx, prompt)
 	fmt.Printf("Login flow response: %+v\n", loginFlowResponse)
 	if err != nil {
