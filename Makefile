@@ -15,6 +15,7 @@ generate:
 	@echo "Generating SDK code from OpenAPI specs..."
 	@mkdir -p pkg/application
 	@mkdir -p pkg/api_resource
+	@mkdir -p pkg/identity_provider
 	@oapi-codegen \
 		-package application \
 		-generate types,client \
@@ -25,6 +26,11 @@ generate:
 		-generate types,client \
 		-o pkg/api_resource/client_gen.go \
 		api-specs/api_resources.yaml
+	@oapi-codegen \
+		-package identity_provider \
+		-generate types,client \
+		-o pkg/identity_provider/client_gen.go \
+		api-specs/idp.yaml
 	@echo "SDK generation complete."
 
 # Clean generated code
@@ -32,4 +38,5 @@ clean:
 	@echo "Cleaning generated SDK code..."
 	@rm -f pkg/application/client_gen.go
 	@rm -f pkg/api_resource/client_gen.go
+	@rm -f pkg/identity_provider/client_gen.go
 	@echo "Cleaning complete."

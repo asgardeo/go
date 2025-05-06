@@ -22,13 +22,15 @@ import (
 	"github.com/asgardeo/go/pkg/api_resource"
 	"github.com/asgardeo/go/pkg/application"
 	"github.com/asgardeo/go/pkg/config"
+	"github.com/asgardeo/go/pkg/identity_provider"
 )
 
 // Client is the main SDK client that provides access to all service clients
 type Client struct {
-	Config      *config.ClientConfig
-	Application *application.ApplicationClient
-	APIResource *api_resource.APIResourceClient
+	Config           *config.ClientConfig
+	Application      *application.ApplicationClient
+	APIResource      *api_resource.APIResourceClient
+	IdentityProvider *identity_provider.IdentityProviderClient
 }
 
 // NewClient creates a new SDK client with the given configuration
@@ -44,9 +46,15 @@ func New(cfg *config.ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
+	identityProviderClient, err := identity_provider.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
-		Config:      cfg,
-		Application: appClient,
-		APIResource: apiResourceClient,
+		Config:           cfg,
+		Application:      appClient,
+		APIResource:      apiResourceClient,
+		IdentityProvider: identityProviderClient,
 	}, nil
 }
