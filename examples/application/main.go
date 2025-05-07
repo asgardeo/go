@@ -20,6 +20,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -57,16 +58,86 @@ func main() {
 		fmt.Printf("Found %d applications\n", len(*apps.Applications))
 	}
 
+	// Create a SPA with name and redirect URL
+	spa, err := client.Application.CreateSinglePageApp(
+		context.Background(),
+		"spa_name",
+		"https://example.com/callback",
+	)
+
+	if err != nil {
+		log.Printf("Error creating application: %v", err)
+	}
+
+	fmt.Printf("Created SPA:\n%s\n", toJSONString(spa))
+
+	// Create a mobile app with name and redirect URL
+	mobileApp, err := client.Application.CreateMobileApp(
+		context.Background(),
+		"mobile_name",
+		"https://example.com/callback",
+	)
+
+	if err != nil {
+		log.Printf("Error creating application: %v", err)
+	}
+
+	fmt.Printf("Created Mobile App with %s \n", toJSONString(mobileApp))
+
+	// Create a M2M app with name
+	m2mApp, err := client.Application.CreateM2MApp(
+		context.Background(),
+		"m2m_name",
+	)
+
+	if err != nil {
+		log.Printf("Error creating application: %v", err)
+	}
+
+	fmt.Printf("Created M2M App with %s \n", toJSONString(m2mApp))
+
+	// Get application by name
+	app, err := client.Application.GetByName(context.Background(), "app_name")
+	if err != nil {
+		fmt.Printf("Error retrieiving application: %v\n", err)
+		return
+	}
+	fmt.Printf("Found app %s with %s \n", app.Name, app)
+
+	// Get application by client ID
+	app, err = client.Application.GetByClienId(context.Background(), "app_client_id")
+	if err != nil {
+		fmt.Printf("Error retrieving application: %v\n", err)
+		return
+	}
+	fmt.Printf("Found app %s with %s \n", app.Name, app)
+
+	// Update application basic info.
+	updating_app_name:= "updating_app_name"
+	updating_app_description := "updating_app_description"
+	
+	updatingApplication := application.ApplicationBasicInfoUpdateModel{
+		Name:        &updating_app_name,
+		Description: &updating_app_description,
+	}
+
+	updatedApp, err := client.Application.UpdateBasicInfo(ctx, "updating_app_id", updatingApplication)
+	if err != nil {
+		fmt.Printf("Error updating application: %v\n", err)
+		return
+	}
+	fmt.Printf("Updated app %s with %s \n", updatedApp.Name, updatedApp)
+
 	// Authorize API.
 	id := "api_resource_uuid"
 	policyIdentifier := "RBAC"
 	scopes := []string{"scope1", "scope2"}
-	authorizedAPI := application.AddAuthorizedAPIJSONRequestBody{
+	authorizedAPI := application.AuthorizedAPICreateModel{
 		Id:               &id,
 		PolicyIdentifier: &policyIdentifier,
 		Scopes:           &scopes,
 	}
-	_, err = client.Application.AuthorizeAPI(ctx, "app_uuid", authorizedAPI)
+	err = client.Application.AuthorizeAPI(ctx, "app_uuid", authorizedAPI)
 	if err != nil {
 		log.Printf("Error authorizing API: %v", err)
 	} else {
@@ -117,4 +188,13 @@ func main() {
 		return
 	}
 	log.Printf("Login flow generation result: %+v", resultResponse.Data)
+}
+
+func toJSONString(app interface{}) string {
+	jsonData, err := json.MarshalIndent(app, "", "  ")
+	if err != nil {
+		log.Printf("Error marshaling app object: %v", err)
+		return ""
+	}
+	return string(jsonData)
 }
