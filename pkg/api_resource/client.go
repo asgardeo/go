@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/asgardeo/go/pkg/api_resource/internal"
 	"github.com/asgardeo/go/pkg/common"
 	"github.com/asgardeo/go/pkg/config"
 )
@@ -30,7 +31,7 @@ import (
 // APIResourceClient is a wrapper around the generated client for the API Resource Management API.
 type APIResourceClient struct {
 	config            *config.ClientConfig
-	apiResourceClient *ClientWithResponses
+	apiResourceClient *internal.ClientWithResponses
 }
 
 // Creates a new API Resource Management API client.
@@ -43,10 +44,10 @@ func New(cfg *config.ClientConfig) (*APIResourceClient, error) {
 		return editorFn(ctx, req)
 	}
 
-	apiResourceClient, err := NewClientWithResponses(
+	apiResourceClient, err := internal.NewClientWithResponses(
 		cfg.BaseURL+"/api/server/v1",
-		WithHTTPClient(cfg.HTTPClient),
-		WithRequestEditorFn(typedAuthEditorFn),
+		internal.WithHTTPClient(cfg.HTTPClient),
+		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 
 	if err != nil {
@@ -59,7 +60,7 @@ func New(cfg *config.ClientConfig) (*APIResourceClient, error) {
 	}, nil
 }
 
-func (c *APIResourceClient) List(ctx context.Context, params *GetAPIResourcesParams) (*APIResourceListResponse, error) {
+func (c *APIResourceClient) List(ctx context.Context, params *APIResourceListParamsModel) (*APIResourceListResponseModel, error) {
 	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list api resources: %w", err)
@@ -70,7 +71,7 @@ func (c *APIResourceClient) List(ctx context.Context, params *GetAPIResourcesPar
 	return resp.JSON200, nil
 }
 
-func (c *APIResourceClient) Get(ctx context.Context, id string) (*APIResourceResponse, error) {
+func (c *APIResourceClient) Get(ctx context.Context, id string) (*APIResourceInfoResponseModel, error) {
 	resp, err := c.apiResourceClient.GetApiResourcesApiResourceIdWithResponse(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get api resource: %w", err)
@@ -81,9 +82,9 @@ func (c *APIResourceClient) Get(ctx context.Context, id string) (*APIResourceRes
 	return resp.JSON200, nil
 }
 
-func (c *APIResourceClient) GetByName(ctx context.Context, name string) (*[]APIResourceListItem, error) {
-	filter := Filter(fmt.Sprintf("name eq %s", name))
-	params := GetAPIResourcesParams{
+func (c *APIResourceClient) GetByName(ctx context.Context, name string) (*[]APIResourceListItemModel, error) {
+	filter := internal.Filter(fmt.Sprintf("name eq %s", name))
+	params := internal.GetAPIResourcesParams{
 		Filter: &filter,
 	}
 	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, &params)
@@ -98,9 +99,9 @@ func (c *APIResourceClient) GetByName(ctx context.Context, name string) (*[]APIR
 	return apiResources, nil
 }
 
-func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier string) (*APIResourceListItem, error) {
-	filter := Filter(fmt.Sprintf("identifier eq %s", identifier))
-	params := GetAPIResourcesParams{
+func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier string) (*APIResourceListItemModel, error) {
+	filter := internal.Filter(fmt.Sprintf("identifier eq %s", identifier))
+	params := internal.GetAPIResourcesParams{
 		Filter: &filter,
 	}
 	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, &params)
@@ -117,7 +118,7 @@ func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier stri
 	return &(*resp.JSON200.APIResources)[0], nil
 }
 
-func (c *APIResourceClient) Create(ctx context.Context, apiResource *AddAPIResourceJSONRequestBody) (*AddAPIResourceResponse, error) {
+func (c *APIResourceClient) Create(ctx context.Context, apiResource *APIResourceCreateModel) (*APIResourceInfoResponseModel, error) {
 	resp, err := c.apiResourceClient.AddAPIResourceWithResponse(ctx, *apiResource)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create api resource: %w", err)
@@ -125,5 +126,5 @@ func (c *APIResourceClient) Create(ctx context.Context, apiResource *AddAPIResou
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("Failed to create api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
-	return resp, nil
+	return resp.JSON200, nil
 }

@@ -23,13 +23,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/asgardeo/go/pkg/claim/internal"
 	"github.com/asgardeo/go/pkg/common"
 	"github.com/asgardeo/go/pkg/config"
 )
 
 type ClaimClient struct {
 	config    *config.ClientConfig
-	apiClient *ClientWithResponses
+	apiClient *internal.ClientWithResponses
 }
 
 func New(cfg *config.ClientConfig) (*ClaimClient, error) {
@@ -40,10 +41,10 @@ func New(cfg *config.ClientConfig) (*ClaimClient, error) {
 		return editorFn(ctx, req)
 	}
 
-	apiClient, err := NewClientWithResponses(
+	apiClient, err := internal.NewClientWithResponses(
 		cfg.BaseURL+"/api/server/v1",
-		WithHTTPClient(cfg.HTTPClient),
-		WithRequestEditorFn(typedAuthEditorFn),
+		internal.WithHTTPClient(cfg.HTTPClient),
+		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create claim client: %w", err)
@@ -55,7 +56,7 @@ func New(cfg *config.ClientConfig) (*ClaimClient, error) {
 	}, nil
 }
 
-func (c *ClaimClient) ListLocalClaims(ctx context.Context) (*[]LocalClaimRes, error) {
+func (c *ClaimClient) ListLocalClaims(ctx context.Context) (*[]LocalClaimListResponseModel, error) {
 	resp, err := c.apiClient.GetLocalClaimsWithResponse(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get claims: %w", err)

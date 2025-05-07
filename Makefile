@@ -13,44 +13,44 @@ install-tools:
 # Generate SDK code from OpenAPI specs
 generate:
 	@echo "Generating SDK code from OpenAPI specs..."
-	@mkdir -p pkg/application
-	@mkdir -p pkg/api_resource
-	@mkdir -p pkg/identity_provider
-	@mkdir -p pkg/authenticator
-	@mkdir -p pkg/claim
+	@mkdir -p pkg/application/internal
+	@mkdir -p pkg/api_resource/internal
+	@mkdir -p pkg/identity_provider/internal
+	@mkdir -p pkg/authenticator/internal
+	@mkdir -p pkg/claim/internal
 	@oapi-codegen \
-		-package application \
+		-package internal \
 		-generate types,client \
-		-o pkg/application/client_gen.go \
+		-o pkg/application/internal/client_gen.go \
 		api-specs/applications.yaml
 	@oapi-codegen \
-		-package api_resource \
+		-package internal \
 		-generate types,client \
-		-o pkg/api_resource/client_gen.go \
+		-o pkg/api_resource/internal/client_gen.go \
 		api-specs/api_resources.yaml
 	@oapi-codegen \
-		-package identity_provider \
+		-package internal \
 		-generate types,client \
-		-o pkg/identity_provider/client_gen.go \
+		-o pkg/identity_provider/internal/client_gen.go \
 		api-specs/idp.yaml
 	@oapi-codegen \
-		-package authenticator \
+		-package internal \
 		-generate types,client \
-		-o pkg/authenticator/client_gen.go \
+		-o pkg/authenticator/internal/client_gen.go \
 		api-specs/authenticators.yaml
 	@oapi-codegen \
-		-package claim \
+		-package internal \
 		-generate types,client \
-		-o pkg/claim/client_gen.go \
+		-o pkg/claim/internal/client_gen.go \
 		api-specs/claim-management.yaml
 	@echo "SDK generation complete."
 
 # Clean generated code
 clean:
 	@echo "Cleaning generated SDK code..."
-	@rm -f pkg/application/client_gen.go
-	@rm -f pkg/api_resource/client_gen.go
-	@rm -f pkg/identity_provider/client_gen.go
-	@rm -f pkg/authenticator/client_gen.go
-	@rm -f pkg/claim/client_gen.go
+	@rm -f pkg/application/internal/client_gen.go
+	@rm -f pkg/api_resource/internal/client_gen.go
+	@rm -f pkg/identity_provider/internal/client_gen.go
+	@rm -f pkg/authenticator/internal/client_gen.go
+	@rm -f pkg/claim/internal/client_gen.go
 	@echo "Cleaning complete."

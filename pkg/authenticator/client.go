@@ -23,13 +23,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/asgardeo/go/pkg/authenticator/internal"
 	"github.com/asgardeo/go/pkg/common"
 	"github.com/asgardeo/go/pkg/config"
 )
 
 type AuthenticatorClient struct {
 	config    *config.ClientConfig
-	apiClient *ClientWithResponses
+	apiClient *internal.ClientWithResponses
 }
 
 func New(cfg *config.ClientConfig) (*AuthenticatorClient, error) {
@@ -40,10 +41,10 @@ func New(cfg *config.ClientConfig) (*AuthenticatorClient, error) {
 		return editorFn(ctx, req)
 	}
 
-	apiClient, err := NewClientWithResponses(
+	apiClient, err := internal.NewClientWithResponses(
 		cfg.BaseURL+"/api/server/v1",
-		WithHTTPClient(cfg.HTTPClient),
-		WithRequestEditorFn(typedAuthEditorFn),
+		internal.WithHTTPClient(cfg.HTTPClient),
+		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create authenticator client: %w", err)
@@ -55,7 +56,7 @@ func New(cfg *config.ClientConfig) (*AuthenticatorClient, error) {
 	}, nil
 }
 
-func (c *AuthenticatorClient) List(ctx context.Context, params *GetAuthenticatorsParams) (*Authenticators, error) {
+func (c *AuthenticatorClient) List(ctx context.Context, params *AuthenticatorListParamsModel) (*AuthenticatorListResponseModel, error) {
 	resp, err := c.apiClient.GetAuthenticatorsWithResponse(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list authenticators: %w", err)
@@ -68,7 +69,7 @@ func (c *AuthenticatorClient) List(ctx context.Context, params *GetAuthenticator
 	return resp.JSON200, nil
 }
 
-func (c *AuthenticatorClient) ListLocalAuthenticators(ctx context.Context) (*Authenticators, error) {
+func (c *AuthenticatorClient) ListLocalAuthenticators(ctx context.Context) (*AuthenticatorListResponseModel, error) {
 	resp, err := c.apiClient.GetAuthenticatorsWithResponse(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list local authenticators: %w", err)
@@ -81,7 +82,7 @@ func (c *AuthenticatorClient) ListLocalAuthenticators(ctx context.Context) (*Aut
 	if allAuthenticators == nil {
 		return nil, fmt.Errorf("Failed to list local authenticators: %s", resp.Body)
 	}
-	localAuthenticators := make([]Authenticator, 0)
+	localAuthenticators := make([]AuthenticatorInfoResponseModel, 0)
 	for _, authenticator := range *allAuthenticators {
 		if *authenticator.Type == "LOCAL" {
 			localAuthenticators = append(localAuthenticators, authenticator)

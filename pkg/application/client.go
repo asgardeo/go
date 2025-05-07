@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/asgardeo/go/pkg/application/internal"
 	"github.com/asgardeo/go/pkg/authenticator"
 	"github.com/asgardeo/go/pkg/claim"
 	"github.com/asgardeo/go/pkg/common"
@@ -38,7 +39,7 @@ const (
 // ApplicationClient is a wrapper around the generated client for the Application Management API
 type ApplicationClient struct {
 	config    *config.ClientConfig
-	apiClient *ClientWithResponses
+	apiClient *internal.ClientWithResponses
 }
 
 type ApplicationBaseModel struct {
@@ -59,10 +60,10 @@ func New(cfg *config.ClientConfig) (*ApplicationClient, error) {
 		return editorFn(ctx, req)
 	}
 
-	apiClient, err := NewClientWithResponses(
+	apiClient, err := internal.NewClientWithResponses(
 		cfg.BaseURL+"/api/server/v1",
-		WithHTTPClient(cfg.HTTPClient),
-		WithRequestEditorFn(typedAuthEditorFn),
+		internal.WithHTTPClient(cfg.HTTPClient),
+		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create application client: %w", err)
@@ -74,7 +75,7 @@ func New(cfg *config.ClientConfig) (*ApplicationClient, error) {
 	}, nil
 }
 
-func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*ApplicationListResponse, error) {
+func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*ApplicationListResponseModel, error) {
 	if limit <= 0 {
 		limit = defaultLimit
 	}
@@ -82,7 +83,7 @@ func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*Appli
 		offset = defaultOffset
 	}
 
-	params := GetAllApplicationsParams{
+	params := internal.GetAllApplicationsParams{
 		Limit:  &limit,
 		Offset: &offset,
 	}
@@ -147,7 +148,7 @@ func (c *ApplicationClient) GetByName(ctx context.Context, name string) (*Applic
 	filter := fmt.Sprintf("name eq %s", name)
 	excludeSystemPortals := true
 
-	params := GetAllApplicationsParams{
+	params := internal.GetAllApplicationsParams{
 		Filter:               &filter,
 		ExcludeSystemPortals: &excludeSystemPortals,
 		Attributes:           stringPtr("templateId,clientId"),
@@ -167,7 +168,7 @@ func (c *ApplicationClient) GetByName(ctx context.Context, name string) (*Applic
 		return nil, fmt.Errorf("application with name '%s' not found", name)
 	}
 
-	var targetApp *ApplicationListItem
+	var targetApp *internal.ApplicationListItem
 	for _, app := range *resp.JSON200.Applications {
 		if app.Name != nil && *app.Name == name {
 			targetApp = &app
@@ -188,7 +189,7 @@ func (c *ApplicationClient) GetByClienId(ctx context.Context, clientId string) (
 	filter := fmt.Sprintf("clientId eq %s", clientId)
 	excludeSystemPortals := true
 
-	params := GetAllApplicationsParams{
+	params := internal.GetAllApplicationsParams{
 		Filter:               &filter,
 		ExcludeSystemPortals: &excludeSystemPortals,
 		Attributes:           stringPtr("templateId,clientId,"),
@@ -208,7 +209,7 @@ func (c *ApplicationClient) GetByClienId(ctx context.Context, clientId string) (
 		return nil, fmt.Errorf("application with clientId '%s' not found", clientId)
 	}
 
-	var targetApp *ApplicationListItem
+	var targetApp *internal.ApplicationListItem
 	for _, app := range *resp.JSON200.Applications {
 		if app.ClientId != nil && *app.ClientId == clientId {
 			targetApp = &app
@@ -260,28 +261,28 @@ func (c *ApplicationClient) UpdateBasicInfo(ctx context.Context, appId string, u
 	return appDetails, nil
 }
 
-func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (ApplicationModel, error) {
+func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (internal.ApplicationModel, error) {
 	allowedOrigins, err := extractOrigins(redirectURL)
 	if err != nil {
-		return ApplicationModel{}, err
+		return internal.ApplicationModel{}, err
 	}
 
-	defaultAuthenticationSequenceType := DEFAULT
-	defaultClaimDialect := LOCAL
+	defaultAuthenticationSequenceType := internal.DEFAULT
+	defaultClaimDialect := internal.LOCAL
 
-	return ApplicationModel{
+	return internal.ApplicationModel{
 		Name: name,
-		AdvancedConfigurations: &AdvancedApplicationConfiguration{
+		AdvancedConfigurations: &internal.AdvancedApplicationConfiguration{
 			DiscoverableByEndUsers: boolPtr(false),
 			SkipLogoutConsent:      boolPtr(true),
 			SkipLoginConsent:       boolPtr(true),
 		},
-		AuthenticationSequence: &AuthenticationSequence{
+		AuthenticationSequence: &internal.AuthenticationSequence{
 			Type: &defaultAuthenticationSequenceType,
-			Steps: &[]AuthenticationStepModel{
+			Steps: &[]internal.AuthenticationStepModel{
 				{
 					Id: 1,
-					Options: []Authenticator{
+					Options: []internal.Authenticator{
 						{
 							Idp:           "LOCAL",
 							Authenticator: "basic",
@@ -290,19 +291,19 @@ func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (Applicati
 				},
 			},
 		},
-		ClaimConfiguration: &ClaimConfiguration{
+		ClaimConfiguration: &internal.ClaimConfiguration{
 			Dialect: &defaultClaimDialect,
-			RequestedClaims: &[]RequestedClaimConfiguration{
+			RequestedClaims: &[]internal.RequestedClaimConfiguration{
 				{
-					Claim: Claim{
+					Claim: internal.Claim{
 						Uri: "http://wso2.org/claims/username",
 					},
 				},
 			},
 		},
-		InboundProtocolConfiguration: &InboundProtocols{
-			Oidc: &OpenIDConnectConfiguration{
-				AccessToken: &AccessTokenConfiguration{
+		InboundProtocolConfiguration: &internal.InboundProtocols{
+			Oidc: &internal.OpenIDConnectConfiguration{
+				AccessToken: &internal.AccessTokenConfiguration{
 					ApplicationAccessTokenExpiryInSeconds: int64Ptr(3600),
 					BindingType:                           stringPtr("sso-session"),
 					RevokeTokensWhenIDPSessionTerminated:  boolPtr(true),
@@ -313,40 +314,40 @@ func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (Applicati
 				GrantTypes:     []string{"authorization_code", "refresh_token"},
 				AllowedOrigins: &allowedOrigins,
 				CallbackURLs:   &[]string{redirectURL},
-				Pkce: &OAuth2PKCEConfiguration{
+				Pkce: &internal.OAuth2PKCEConfiguration{
 					Mandatory:                      boolPtr(true),
 					SupportPlainTransformAlgorithm: boolPtr(false),
 				},
 				PublicClient: boolPtr(true),
-				RefreshToken: &RefreshTokenConfiguration{
+				RefreshToken: &internal.RefreshTokenConfiguration{
 					ExpiryInSeconds:   int64Ptr(86400),
 					RenewRefreshToken: boolPtr(true),
 				},
 			},
 		},
 		TemplateId: stringPtr("6a90e4b0-fbff-42d7-bfde-1efd98f07cd7"),
-		AssociatedRoles: &AssociatedRolesConfig{
-			AllowedAudience: APPLICATION,
-			Roles:           &[]Role{},
+		AssociatedRoles: &internal.AssociatedRolesConfig{
+			AllowedAudience: internal.APPLICATION,
+			Roles:           &[]internal.Role{},
 		},
 	}, nil
 }
 
-func (c *ApplicationClient) buildMobileAppRequest(name, redirectURL string) (ApplicationModel, error) {
-	defaultAuthenticationSequenceType := DEFAULT
-	return ApplicationModel{
+func (c *ApplicationClient) buildMobileAppRequest(name, redirectURL string) (internal.ApplicationModel, error) {
+	defaultAuthenticationSequenceType := internal.DEFAULT
+	return internal.ApplicationModel{
 		Name: name,
-		AdvancedConfigurations: &AdvancedApplicationConfiguration{
+		AdvancedConfigurations: &internal.AdvancedApplicationConfiguration{
 			DiscoverableByEndUsers: boolPtr(false),
 			SkipLogoutConsent:      boolPtr(true),
 			SkipLoginConsent:       boolPtr(true),
 		},
-		AuthenticationSequence: &AuthenticationSequence{
+		AuthenticationSequence: &internal.AuthenticationSequence{
 			Type: &defaultAuthenticationSequenceType,
-			Steps: &[]AuthenticationStepModel{
+			Steps: &[]internal.AuthenticationStepModel{
 				{
 					Id: 1,
-					Options: []Authenticator{
+					Options: []internal.Authenticator{
 						{
 							Idp:           "LOCAL",
 							Authenticator: "basic",
@@ -355,9 +356,9 @@ func (c *ApplicationClient) buildMobileAppRequest(name, redirectURL string) (App
 				},
 			},
 		},
-		InboundProtocolConfiguration: &InboundProtocols{
-			Oidc: &OpenIDConnectConfiguration{
-				AccessToken: &AccessTokenConfiguration{
+		InboundProtocolConfiguration: &internal.InboundProtocols{
+			Oidc: &internal.OpenIDConnectConfiguration{
+				AccessToken: &internal.AccessTokenConfiguration{
 					ApplicationAccessTokenExpiryInSeconds: int64Ptr(3600),
 					BindingType:                           stringPtr("None"),
 					RevokeTokensWhenIDPSessionTerminated:  boolPtr(false),
@@ -369,47 +370,47 @@ func (c *ApplicationClient) buildMobileAppRequest(name, redirectURL string) (App
 				GrantTypes:     []string{"authorization_code", "refresh_token"},
 				CallbackURLs:   &[]string{redirectURL},
 				AllowedOrigins: &[]string{}, // Empty for mobile apps
-				Pkce: &OAuth2PKCEConfiguration{
+				Pkce: &internal.OAuth2PKCEConfiguration{
 					Mandatory:                      boolPtr(true),
 					SupportPlainTransformAlgorithm: boolPtr(false),
 				},
 				PublicClient: boolPtr(true),
-				RefreshToken: &RefreshTokenConfiguration{
+				RefreshToken: &internal.RefreshTokenConfiguration{
 					ExpiryInSeconds:   int64Ptr(86400),
 					RenewRefreshToken: boolPtr(true),
 				},
 			},
 		},
 		TemplateId: stringPtr("mobile-application"),
-		AssociatedRoles: &AssociatedRolesConfig{
-			AllowedAudience: APPLICATION,
-			Roles:           &[]Role{},
+		AssociatedRoles: &internal.AssociatedRolesConfig{
+			AllowedAudience: internal.APPLICATION,
+			Roles:           &[]internal.Role{},
 		},
 	}, nil
 }
 
-func (c *ApplicationClient) buildM2MAppRequest(name string) (ApplicationModel, error) {
-	defaultAuthenticationSequenceType := DEFAULT
-	return ApplicationModel{
+func (c *ApplicationClient) buildM2MAppRequest(name string) (internal.ApplicationModel, error) {
+	defaultAuthenticationSequenceType := internal.DEFAULT
+	return internal.ApplicationModel{
 		Name: name,
-		InboundProtocolConfiguration: &InboundProtocols{
-			Oidc: &OpenIDConnectConfiguration{
+		InboundProtocolConfiguration: &internal.InboundProtocols{
+			Oidc: &internal.OpenIDConnectConfiguration{
 				GrantTypes:   []string{"client_credentials"},
 				PublicClient: boolPtr(false),
 			},
 		},
-		AuthenticationSequence: &AuthenticationSequence{
+		AuthenticationSequence: &internal.AuthenticationSequence{
 			Type: &defaultAuthenticationSequenceType,
 		},
 		TemplateId: stringPtr("m2m-application"),
-		AssociatedRoles: &AssociatedRolesConfig{
-			AllowedAudience: APPLICATION,
-			Roles:           &[]Role{},
+		AssociatedRoles: &internal.AssociatedRolesConfig{
+			AllowedAudience: internal.APPLICATION,
+			Roles:           &[]internal.Role{},
 		},
 	}, nil
 }
 
-func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Context, resp *CreateApplicationResponse, name, redirectURL string) (*ApplicationBasicInfoResponseModel, error) {
+func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name, redirectURL string) (*ApplicationBasicInfoResponseModel, error) {
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
@@ -443,7 +444,7 @@ func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Con
 	}, nil
 }
 
-func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx context.Context, resp *CreateApplicationResponse, name string) (*ApplicationBasicInfoResponseModel, error) {
+func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name string) (*ApplicationBasicInfoResponseModel, error) {
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
@@ -476,7 +477,7 @@ func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx conte
 	}, nil
 }
 
-func (c *ApplicationClient) fetchInboundOAuthDetails(ctx context.Context, appID string) (*OpenIDConnectConfiguration, error) {
+func (c *ApplicationClient) fetchInboundOAuthDetails(ctx context.Context, appID string) (*internal.OpenIDConnectConfiguration, error) {
 	resp, err := c.apiClient.GetInboundOAuthConfigurationWithResponse(ctx, appID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OAuth protocol details: %w", err)
@@ -494,7 +495,7 @@ func (c *ApplicationClient) fetchInboundOAuthDetails(ctx context.Context, appID 
 	return resp.JSON200, nil
 }
 
-func (c *ApplicationClient) fetchApplicationDetails(ctx context.Context, appID string) (*ApplicationResponseModel, error) {
+func (c *ApplicationClient) fetchApplicationDetails(ctx context.Context, appID string) (*internal.ApplicationResponseModel, error) {
 	resp, err := c.apiClient.GetApplicationWithResponse(ctx, appID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get application details: %w", err)
@@ -546,7 +547,7 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 	return result, nil
 }
 
-func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponse, error) {
+func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponseModel, error) {
 
 	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
 	if err != nil {
@@ -557,7 +558,7 @@ func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string
 	if err != nil {
 		return nil, fmt.Errorf("Failed to build user claims: %w", err)
 	}
-	loginFlowGenerateRequest := LoginFlowGenerateRequest{
+	loginFlowGenerateRequest := internal.LoginFlowGenerateRequest{
 		AvailableAuthenticators: &availableAuthenticators,
 		UserClaims:              &userClaims,
 		UserQuery:               &prompt,
@@ -572,7 +573,7 @@ func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string
 	return resp.JSON200, nil
 }
 
-func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponse, error) {
+func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponseModel, error) {
 	resp, err := c.apiClient.GetLoginFlowGenerationStatusWithResponse(ctx, flowId)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get login flow generation status: %w", err)
@@ -583,7 +584,7 @@ func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, fl
 	return resp.JSON200, nil
 }
 
-func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponse, error) {
+func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponseModel, error) {
 	resp, err := c.apiClient.GetLoginFlowGenerationResultWithResponse(ctx, flowId)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get login flow generation result: %w", err)
@@ -632,7 +633,7 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 		return nil, fmt.Errorf("Failed to create identity provider client: %w", err)
 	}
 	requiredAttributes := "federatedAuthenticators"
-	getIDPListParams := identity_provider.GetIDPsParams{
+	getIDPListParams := identity_provider.IdentityProviderListParamsModel{
 		RequiredAttributes: &requiredAttributes,
 	}
 	idpList, err := identityProviderClient.List(ctx, &getIDPListParams)
