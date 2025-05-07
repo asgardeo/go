@@ -113,9 +113,9 @@ func main() {
 	fmt.Printf("Found app %s with %s \n", app.Name, app)
 
 	// Update application basic info.
-	updating_app_name:= "updating_app_name"
+	updating_app_name := "updating_app_name"
 	updating_app_description := "updating_app_description"
-	
+
 	updatingApplication := application.ApplicationBasicInfoUpdateModel{
 		Name:        &updating_app_name,
 		Description: &updating_app_description,
@@ -156,7 +156,7 @@ func main() {
 
 	// Poll for the login flow generation status.
 	flowId := loginFlowResponse.OperationId
-	var statusResponse *application.LoginFlowStatusResponse
+	var statusResponse *application.LoginFlowStatusResponseModel
 	for {
 		statusResponse, err = client.Application.GetLoginFlowGenerationStatus(ctx, *flowId)
 		if err != nil {

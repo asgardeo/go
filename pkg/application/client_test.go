@@ -25,6 +25,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/asgardeo/go/pkg/application/internal"
 	"github.com/asgardeo/go/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,19 +62,19 @@ func TestListApplications(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		// Create mock data
-		app1 := ApplicationListItem{
+		app1 := internal.ApplicationListItem{
 			Id:       stringPtr("app-id-1"),
 			Name:     stringPtr("Test App 1"),
 			ClientId: stringPtr("client-1"),
 		}
-		app2 := ApplicationListItem{
+		app2 := internal.ApplicationListItem{
 			Id:       stringPtr("app-id-2"),
 			Name:     stringPtr("Test App 2"),
 			ClientId: stringPtr("client-2"),
 		}
 
-		apps := []ApplicationListItem{app1, app2}
-		response := ApplicationListResponse{
+		apps := []internal.ApplicationListItem{app1, app2}
+		response := internal.ApplicationListResponse{
 			Applications: &apps,
 			Count:        intPtr(2),
 			TotalResults: intPtr(2),

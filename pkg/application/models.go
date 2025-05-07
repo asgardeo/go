@@ -1,5 +1,9 @@
 package application
 
+import (
+	"github.com/asgardeo/go/pkg/application/internal"
+)
+
 type ApplicationBasicInfoResponseModel struct {
 	Id               string `json:"id"`
 	Name             string `json:"name"`
@@ -9,7 +13,9 @@ type ApplicationBasicInfoResponseModel struct {
 	AuthorizedScopes string `json:"scope"`
 }
 
-type AuthorizedAPICreateModel = AddAuthorizedAPIJSONRequestBody
+type ApplicationListResponseModel = internal.ApplicationListResponse
+
+type AuthorizedAPICreateModel = internal.AddAuthorizedAPIJSONRequestBody
 
 // ApplicationBasicInfoUpdateModel defines a simplified model for updating basic application information
 type ApplicationBasicInfoUpdateModel struct {
@@ -20,9 +26,15 @@ type ApplicationBasicInfoUpdateModel struct {
 	LogoutReturnUrl *string `json:"logoutReturnUrl,omitempty"`
 }
 
+type LoginFlowGenerateResponseModel = internal.LoginFlowGenerateResponse
+
+type LoginFlowStatusResponseModel = internal.LoginFlowStatusResponse
+
+type LoginFlowResultResponseModel = internal.LoginFlowResultResponse
+
 // convertToApplicationPatchModel converts the public ApplicationBasicInfoUpdateModel to the internal PatchApplicationJSONRequestBody
-func convertToApplicationPatchModel(model ApplicationBasicInfoUpdateModel) PatchApplicationJSONRequestBody {
-	return PatchApplicationJSONRequestBody{
+func convertToApplicationPatchModel(model ApplicationBasicInfoUpdateModel) internal.PatchApplicationJSONRequestBody {
+	return internal.PatchApplicationJSONRequestBody{
 		Name:            model.Name,
 		Description:     model.Description,
 		ImageUrl:        model.ImageUrl,

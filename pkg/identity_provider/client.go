@@ -25,11 +25,12 @@ import (
 
 	"github.com/asgardeo/go/pkg/common"
 	"github.com/asgardeo/go/pkg/config"
+	"github.com/asgardeo/go/pkg/identity_provider/internal"
 )
 
 type IdentityProviderClient struct {
 	config    *config.ClientConfig
-	apiClient *ClientWithResponses
+	apiClient *internal.ClientWithResponses
 }
 
 func New(cfg *config.ClientConfig) (*IdentityProviderClient, error) {
@@ -40,10 +41,10 @@ func New(cfg *config.ClientConfig) (*IdentityProviderClient, error) {
 		return editorFn(ctx, req)
 	}
 
-	apiClient, err := NewClientWithResponses(
+	apiClient, err := internal.NewClientWithResponses(
 		cfg.BaseURL+"/api/server/v1",
-		WithHTTPClient(cfg.HTTPClient),
-		WithRequestEditorFn(typedAuthEditorFn),
+		internal.WithHTTPClient(cfg.HTTPClient),
+		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create identity provider client: %w", err)
@@ -55,7 +56,7 @@ func New(cfg *config.ClientConfig) (*IdentityProviderClient, error) {
 	}, nil
 }
 
-func (c *IdentityProviderClient) List(ctx context.Context, idpGetParams *GetIDPsParams) (*IdentityProviderListResponse, error) {
+func (c *IdentityProviderClient) List(ctx context.Context, idpGetParams *IdentityProviderListParamsModel) (*IdentityProviderListResponseModel, error) {
 	resp, err := c.apiClient.GetIDPsWithResponse(ctx, idpGetParams)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list identity providers: %w", err)
