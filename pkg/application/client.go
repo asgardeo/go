@@ -97,7 +97,7 @@ func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*Appli
 }
 
 // CreateSinglePageApp creates a new Single Page Application with sensible defaults
-func (c *ApplicationClient) CreateSinglePageApp(ctx context.Context, name string, redirectURL string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) CreateSinglePageApp(ctx context.Context, name string, redirectURL string) (*ApplicationBasicInfoResponseModel, error) {
 	appRequest, err := c.buildSPARequest(name, redirectURL)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (c *ApplicationClient) CreateSinglePageApp(ctx context.Context, name string
 }
 
 // CreateMobileApp creates a new Mobile Application with sensible defaults
-func (c *ApplicationClient) CreateMobileApp(ctx context.Context, name string, redirectURL string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) CreateMobileApp(ctx context.Context, name string, redirectURL string) (*ApplicationBasicInfoResponseModel, error) {
 	appRequest, err := c.buildMobileAppRequest(name, redirectURL)
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func (c *ApplicationClient) CreateMobileApp(ctx context.Context, name string, re
 }
 
 // CreateM2MApp creates a new Machine-to-Machine (M2M) Application
-func (c *ApplicationClient) CreateM2MApp(ctx context.Context, name string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) CreateM2MApp(ctx context.Context, name string) (*ApplicationBasicInfoResponseModel, error) {
 	appRequest, err := c.buildM2MAppRequest(name)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (c *ApplicationClient) CreateM2MApp(ctx context.Context, name string) (*App
 
 // GetByName finds an application by name and returns its details
 // todo: improve application details being fetched beyond appId, name, clientId and clientSecret
-func (c *ApplicationClient) GetByName(ctx context.Context, name string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) GetByName(ctx context.Context, name string) (*ApplicationBasicInfoResponseModel, error) {
 	filter := fmt.Sprintf("name eq %s", name)
 	excludeSystemPortals := true
 
@@ -184,7 +184,7 @@ func (c *ApplicationClient) GetByName(ctx context.Context, name string) (*Applic
 
 // GetByClienId finds an application by clientId and returns its details
 // todo: improve application details being fetched beyond appId, name, clientId and clientSecret
-func (c *ApplicationClient) GetByClienId(ctx context.Context, clientId string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) GetByClienId(ctx context.Context, clientId string) (*ApplicationBasicInfoResponseModel, error) {
 	filter := fmt.Sprintf("clientId eq %s", clientId)
 	excludeSystemPortals := true
 
@@ -221,6 +221,43 @@ func (c *ApplicationClient) GetByClienId(ctx context.Context, clientId string) (
 	}
 
 	return c.getApplicationDetails(ctx, *targetApp.Id)
+}
+
+// AuthorizeAPI authorizes an application to access an API with specified scopes
+func (c *ApplicationClient) AuthorizeAPI(ctx context.Context, appID string, apiAuthorization AuthorizedAPICreateModel) error {
+	resp, err := c.apiClient.AddAuthorizedAPIWithResponse(ctx, appID, apiAuthorization)
+	if err != nil {
+		return fmt.Errorf("failed to authorize API: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("failed to authorize API: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
+
+	return nil
+}
+
+// UpdateBasicInfo updates basic information of an existing application
+func (c *ApplicationClient) UpdateBasicInfo(ctx context.Context, appId string, updateModel ApplicationBasicInfoUpdateModel) (*ApplicationBasicInfoResponseModel, error) {
+	patchData := convertToApplicationPatchModel(updateModel)
+	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, patchData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update application: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to update application: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
+
+	// After updating, fetch the latest application details
+	appDetails, err := c.getApplicationDetails(ctx, appId)
+	if err != nil {
+		return nil, fmt.Errorf("application updated but failed to fetch updated details: %w", err)
+	}
+
+	return appDetails, nil
 }
 
 func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (ApplicationModel, error) {
@@ -372,7 +409,7 @@ func (c *ApplicationClient) buildM2MAppRequest(name string) (ApplicationModel, e
 	}, nil
 }
 
-func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Context, resp *CreateApplicationResponse, name, redirectURL string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Context, resp *CreateApplicationResponse, name, redirectURL string) (*ApplicationBasicInfoResponseModel, error) {
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
@@ -397,7 +434,7 @@ func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Con
 		return nil, fmt.Errorf("created application but failed to fetch details: %w", err)
 	}
 
-	return &ApplicationBaseModel{
+	return &ApplicationBasicInfoResponseModel{
 		Id:               appID,
 		Name:             name,
 		ClientId:         *appDetails.ClientId,
@@ -406,7 +443,7 @@ func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Con
 	}, nil
 }
 
-func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx context.Context, resp *CreateApplicationResponse, name string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx context.Context, resp *CreateApplicationResponse, name string) (*ApplicationBasicInfoResponseModel, error) {
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
@@ -431,7 +468,7 @@ func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx conte
 		return nil, fmt.Errorf("failed to fetch OAuth client credentials: %w", err)
 	}
 
-	return &ApplicationBaseModel{
+	return &ApplicationBasicInfoResponseModel{
 		Id:           appID,
 		Name:         name,
 		ClientId:     *oauthDetails.ClientId,
@@ -475,13 +512,13 @@ func (c *ApplicationClient) fetchApplicationDetails(ctx context.Context, appID s
 	return resp.JSON200, nil
 }
 
-func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID string) (*ApplicationBaseModel, error) {
+func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID string) (*ApplicationBasicInfoResponseModel, error) {
 	appDetails, err := c.fetchApplicationDetails(ctx, appID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get application details: %w", err)
 	}
 
-	result := &ApplicationBaseModel{
+	result := &ApplicationBasicInfoResponseModel{
 		Id:   appID,
 		Name: appDetails.Name,
 	}
@@ -507,17 +544,6 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 	}
 
 	return result, nil
-}
-
-func (c *ApplicationClient) AuthorizeAPI(ctx context.Context, appID string, authorizedAPI AddAuthorizedAPIJSONRequestBody) (*http.Response, error) {
-	resp, err := c.apiClient.AddAuthorizedAPIWithResponse(ctx, appID, authorizedAPI)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to authorize api: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to authorize api: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	return &http.Response{}, nil
 }
 
 func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponse, error) {
