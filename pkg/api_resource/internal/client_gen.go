@@ -1786,7 +1786,7 @@ func (r GetAPIResourcesResponse) StatusCode() int {
 type AddAPIResourceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *APIResourceResponse
+	JSON201      *APIResourceResponse
 	JSON400      *Error
 	JSON404      *Error
 	JSON409      *Error
@@ -2481,12 +2481,12 @@ func ParseAddAPIResourceResponse(rsp *http.Response) (*AddAPIResourceResponse, e
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest APIResourceResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON200 = &dest
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest Error

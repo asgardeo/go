@@ -126,5 +126,5 @@ func (c *APIResourceClient) Create(ctx context.Context, apiResource *APIResource
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("Failed to create api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
-	return resp.JSON200, nil
+	return resp.JSON201, nil
 }
