@@ -26,6 +26,24 @@ type ApplicationBasicInfoUpdateModel struct {
 	LogoutReturnUrl *string `json:"logoutReturnUrl,omitempty"`
 }
 
+// ApplicationOAuthConfigUpdateModel contains only the fields that can be updated in OAuth configuration
+type ApplicationOAuthConfigUpdateModel struct {
+	// Access token fields
+	AccessTokenAttributes                 *[]string `json:"accessTokenAttributes,omitempty"`
+	ApplicationAccessTokenExpiryInSeconds *int64    `json:"applicationAccessTokenExpiryInSeconds,omitempty"`
+	UserAccessTokenExpiryInSeconds        *int64    `json:"userAccessTokenExpiryInSeconds,omitempty"`
+
+	// CORS and redirect URIs
+	AllowedOrigins *[]string `json:"allowedOrigins,omitempty"`
+	CallbackURLs   *[]string `json:"callbackURLs,omitempty"`
+
+	// Logout configuration
+	Logout *internal.OIDCLogoutConfiguration `json:"logout,omitempty"`
+
+	// Refresh token config
+	RefreshTokenExpiryInSeconds *int64 `json:"refreshTokenExpiryInSeconds,omitempty"`
+}
+
 type LoginFlowGenerateResponseModel = internal.LoginFlowGenerateResponse
 
 type LoginFlowStatusResponseModel = internal.LoginFlowStatusResponse

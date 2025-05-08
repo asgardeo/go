@@ -113,20 +113,39 @@ func main() {
 	fmt.Printf("Found app %s with %s \n", app.Name, app)
 
 	// Update application basic info.
-	updating_app_name := "updating_app_name"
-	updating_app_description := "updating_app_description"
+	basicInfoUpdatingAppId:= "app-uuid"
 
-	updatingApplication := application.ApplicationBasicInfoUpdateModel{
-		Name:        &updating_app_name,
-		Description: &updating_app_description,
-	}
+	basicInfoUpdate := application.NewBasicInfoUpdate().
+		WithName("app_name").
+		WithDescription("app_description").
+		WithImageUrl("image_url").
+		WithAccessUrl("access_url").
+		WithLogoutReturnUrl("logout_url")
 
-	updatedApp, err := client.Application.UpdateBasicInfo(ctx, "updating_app_id", updatingApplication)
+	err = client.Application.UpdateBasicInfo(ctx, basicInfoUpdatingAppId, *basicInfoUpdate)
 	if err != nil {
 		fmt.Printf("Error updating application: %v\n", err)
 		return
 	}
-	fmt.Printf("Updated app %s with %s \n", updatedApp.Name, updatedApp)
+	fmt.Printf("Successfully updated basic info of app with ID: %s\n", basicInfoUpdatingAppId)
+
+	// Update OAuth configuration for an SPA application
+	OAuthConfigUpdate := application.NewOAuthConfigUpdate().
+	WithAllowedOrigins([]string{"allowed_origin_url"}).
+	WithCallbackURLs([]string{"callback_url_1", "callback_url_2"}).
+	WithUserAccessTokenExpiry(3600).
+	WithApplicationAccessTokenExpiry(7200).
+	WithRefreshTokenExpiry(7200).
+	WithAccessTokenAttributes([]string{"email", "profile"})
+
+	// Update without type checking
+	OAuthConfigUpdatingAppId:= "app-uuid"
+	err = client.Application.UpdateOAuthConfig(ctx, OAuthConfigUpdatingAppId, *OAuthConfigUpdate)
+	if err != nil {
+		fmt.Printf("Error updating application: %v\n", err)
+		return
+	}
+	fmt.Printf("Successfully updated OAuth configuration for app with ID: %s\n", OAuthConfigUpdatingAppId)
 
 	// Authorize API.
 	id := "api_resource_uuid"

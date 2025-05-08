@@ -42,15 +42,6 @@ type ApplicationClient struct {
 	apiClient *internal.ClientWithResponses
 }
 
-type ApplicationBaseModel struct {
-	Id               string `json:"id"`
-	Name             string `json:"name"`
-	ClientId         string `json:"client_id"`
-	ClientSecret     string `json:"client_secret"`
-	RedirectURL      string `json:"redirect_url"`
-	AuthorizedScopes string `json:"scope"`
-}
-
 // New creates a new Application Management API client
 func New(cfg *config.ClientConfig) (*ApplicationClient, error) {
 	authEditorFn := common.CreateAuthRequestEditorFunc(cfg)
@@ -240,25 +231,100 @@ func (c *ApplicationClient) AuthorizeAPI(ctx context.Context, appID string, apiA
 }
 
 // UpdateBasicInfo updates basic information of an existing application
-func (c *ApplicationClient) UpdateBasicInfo(ctx context.Context, appId string, updateModel ApplicationBasicInfoUpdateModel) (*ApplicationBasicInfoResponseModel, error) {
+func (c *ApplicationClient) UpdateBasicInfo(ctx context.Context, appId string, updateModel ApplicationBasicInfoUpdateModel) error {
 	patchData := convertToApplicationPatchModel(updateModel)
 	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, patchData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update application: %w", err)
+		return fmt.Errorf("failed to update application: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to update application: status %d, body: %s",
+		return fmt.Errorf("failed to update application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
 	}
 
-	// After updating, fetch the latest application details
-	appDetails, err := c.getApplicationDetails(ctx, appId)
+	return nil
+}
+
+// UpdateOAuthConfig updates allowed OAuth configuration fields for an application
+func (c *ApplicationClient) UpdateOAuthConfig(ctx context.Context, applicationId string, config ApplicationOAuthConfigUpdateModel) error {
+	resp, err := c.apiClient.GetInboundOAuthConfigurationWithResponse(ctx, applicationId)
 	if err != nil {
-		return nil, fmt.Errorf("application updated but failed to fetch updated details: %w", err)
+		return fmt.Errorf("failed to get existing OAuth configuration: %w", err)
 	}
 
-	return appDetails, nil
+	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+		return fmt.Errorf("failed to get existing OAuth configuration: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
+
+	updatedConfig := *resp.JSON200
+
+	if updatedConfig.AccessToken == nil {
+		updatedConfig.AccessToken = &internal.AccessTokenConfiguration{}
+	}
+
+	if config.AccessTokenAttributes != nil {
+		updatedConfig.AccessToken.AccessTokenAttributes = config.AccessTokenAttributes
+	}
+
+	// todo: Allow application access token expiry only for M2M and SSR web apps
+	if config.ApplicationAccessTokenExpiryInSeconds != nil {
+		updatedConfig.AccessToken.ApplicationAccessTokenExpiryInSeconds = config.ApplicationAccessTokenExpiryInSeconds
+	}
+
+	// todo: Allow UserAccessTokenExpiryInSeconds only for mobile, SPA, web apps
+	if config.UserAccessTokenExpiryInSeconds != nil {
+		updatedConfig.AccessToken.UserAccessTokenExpiryInSeconds = config.UserAccessTokenExpiryInSeconds
+	}
+
+	// todo: Allow CORS origins only or mobile, SPA, web app
+	if config.AllowedOrigins != nil {
+		updatedConfig.AllowedOrigins = config.AllowedOrigins
+	}
+
+	if config.CallbackURLs != nil {
+		// iterate over call backs and construct "regexp=(callback1|callback2|...|callbackN)"
+		var callbackRegex string
+		for i, callback := range *config.CallbackURLs {
+			if i == 0 {
+				callbackRegex = fmt.Sprintf("regexp=(%s", callback)
+			} else {
+				callbackRegex = fmt.Sprintf("%s|%s", callbackRegex, callback)
+			}
+		}
+		if len(*config.CallbackURLs) > 0 {
+			callbackRegex = fmt.Sprintf("%s)", callbackRegex)
+		} else {
+			callbackRegex = ""
+		}
+
+		updatedConfig.CallbackURLs = &[]string{callbackRegex}
+	}
+
+	if config.Logout != nil {
+		updatedConfig.Logout = config.Logout
+	}
+
+	if config.RefreshTokenExpiryInSeconds != nil {
+		if updatedConfig.RefreshToken == nil {
+			updatedConfig.RefreshToken = &internal.RefreshTokenConfiguration{}
+		}
+		updatedConfig.RefreshToken.ExpiryInSeconds = config.RefreshTokenExpiryInSeconds
+	}
+
+	// Update the configuration
+	updateResp, err := c.apiClient.UpdateInboundOAuthConfigurationWithResponse(ctx, applicationId, updatedConfig)
+	if err != nil {
+		return fmt.Errorf("failed to update OAuth configuration: %w", err)
+	}
+
+	if updateResp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("failed to update OAuth configuration: status %d, body: %s",
+			updateResp.StatusCode(), string(updateResp.Body))
+	}
+
+	return nil
 }
 
 func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (internal.ApplicationModel, error) {
