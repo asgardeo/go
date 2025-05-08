@@ -661,6 +661,20 @@ func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, fl
 	return resp.JSON200, nil
 }
 
+func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, loginFlowUpdateRequest LoginFlowUpdateModel) error {
+	authenticationSequence := internal.ApplicationPatchModel{
+		AuthenticationSequence: &loginFlowUpdateRequest,
+	}
+	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, authenticationSequence)
+	if err != nil {
+		return fmt.Errorf("Failed to update login flow: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("Failed to update login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return nil
+}
+
 func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (map[string]interface{}, error) {
 	authenticatorClient, err := authenticator.New(c.config)
 	if err != nil {

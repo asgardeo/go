@@ -50,6 +50,14 @@ type LoginFlowStatusResponseModel = internal.LoginFlowStatusResponse
 
 type LoginFlowResultResponseModel = internal.LoginFlowResultResponse
 
+type LoginFlowUpdateModel = internal.AuthenticationSequence
+
+type LoginFlowStepModel = internal.AuthenticationStepModel
+
+type AuthenticatorModel = internal.Authenticator
+
+type LoginFlowTypeModel = internal.AuthenticationSequenceType
+
 // convertToApplicationPatchModel converts the public ApplicationBasicInfoUpdateModel to the internal PatchApplicationJSONRequestBody
 func convertToApplicationPatchModel(model ApplicationBasicInfoUpdateModel) internal.PatchApplicationJSONRequestBody {
 	return internal.PatchApplicationJSONRequestBody{
