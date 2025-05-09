@@ -230,6 +230,20 @@ func (c *ApplicationClient) AuthorizeAPI(ctx context.Context, appID string, apiA
 	return nil
 }
 
+// GetAuthorizedAPIs retrieves the list of APIs authorized for an application
+func (c *ApplicationClient) GetAuthorizedAPIs(ctx context.Context, appID string) (*[]AuthorizedAPIResponseModel, error) {
+	resp, err := c.apiClient.GetAuthorizedAPIsWithResponse(ctx, appID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get authorized APIs: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to get authorized APIs: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
 // UpdateBasicInfo updates basic information of an existing application
 func (c *ApplicationClient) UpdateBasicInfo(ctx context.Context, appId string, updateModel ApplicationBasicInfoUpdateModel) error {
 	patchData := convertToApplicationPatchModel(updateModel)

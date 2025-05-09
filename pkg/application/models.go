@@ -35,6 +35,8 @@ type ApplicationListResponseModel = internal.ApplicationListResponse
 
 type AuthorizedAPICreateModel = internal.AddAuthorizedAPIJSONRequestBody
 
+type AuthorizedAPIResponseModel = internal.AuthorizedAPIResponse
+
 // ApplicationBasicInfoUpdateModel defines a simplified model for updating basic application information
 type ApplicationBasicInfoUpdateModel struct {
 	Name            *string `json:"name,omitempty"`
@@ -54,7 +56,7 @@ type ApplicationOAuthConfigUpdateModel struct {
 	CallbackURLs   *[]string `json:"callbackURLs,omitempty"`
 
 	Logout *internal.OIDCLogoutConfiguration `json:"logout,omitempty"`
-	
+
 	RefreshTokenExpiryInSeconds *int64 `json:"refreshTokenExpiryInSeconds,omitempty"`
 }
 
