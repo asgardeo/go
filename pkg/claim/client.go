@@ -47,7 +47,7 @@ func New(cfg *config.ClientConfig) (*ClaimClient, error) {
 		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create claim client: %w", err)
+		return nil, fmt.Errorf("failed to create claim client: %w", err)
 	}
 
 	return &ClaimClient{
@@ -59,11 +59,11 @@ func New(cfg *config.ClientConfig) (*ClaimClient, error) {
 func (c *ClaimClient) ListLocalClaims(ctx context.Context) (*[]LocalClaimListResponseModel, error) {
 	resp, err := c.apiClient.GetLocalClaimsWithResponse(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get claims: %w", err)
+		return nil, fmt.Errorf("failed to get claims: %w", err)
 	}
 
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("Failed to get claims: %s", resp.Status())
+		return nil, fmt.Errorf("failed to get claims: %s", resp.Status())
 	}
 
 	return resp.JSON200, nil

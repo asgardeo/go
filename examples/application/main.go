@@ -21,7 +21,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
@@ -53,9 +52,9 @@ func main() {
 	// List applications.
 	apps, err := client.Application.List(ctx, 10, 0)
 	if err != nil {
-		log.Printf("Error listing users: %v", err)
+		log.Printf("Error listing applications: %v", err)
 	} else {
-		fmt.Printf("Found %d applications\n", len(*apps.Applications))
+		log.Printf("Found %d applications\n", len(*apps.Applications))
 	}
 
 	// Create a SPA with name and redirect URL
@@ -67,9 +66,9 @@ func main() {
 
 	if err != nil {
 		log.Printf("Error creating application: %v", err)
+	} else {
+		log.Printf("Created SPA:\n%s\n", toJSONString(spa))
 	}
-
-	fmt.Printf("Created SPA:\n%s\n", toJSONString(spa))
 
 	// Create a mobile app with name and redirect URL
 	mobileApp, err := client.Application.CreateMobileApp(
@@ -80,9 +79,9 @@ func main() {
 
 	if err != nil {
 		log.Printf("Error creating application: %v", err)
+	} else {
+		log.Printf("Created Mobile App with %s \n", toJSONString(mobileApp))
 	}
-
-	fmt.Printf("Created Mobile App with %s \n", toJSONString(mobileApp))
 
 	// Create a M2M app with name
 	m2mApp, err := client.Application.CreateM2MApp(
@@ -92,25 +91,27 @@ func main() {
 
 	if err != nil {
 		log.Printf("Error creating application: %v", err)
+	} else {
+		log.Printf("Created M2M App with %s \n", toJSONString(m2mApp))
 	}
-
-	fmt.Printf("Created M2M App with %s \n", toJSONString(m2mApp))
 
 	// Get application by name
 	app, err := client.Application.GetByName(context.Background(), "app_name")
 	if err != nil {
-		fmt.Printf("Error retrieiving application: %v\n", err)
+		log.Printf("Error retrieiving application: %v\n", err)
 		return
+	} else {
+		log.Printf("Found app %s with %s \n", app.Name, app)
 	}
-	fmt.Printf("Found app %s with %s \n", app.Name, app)
 
 	// Get application by client ID
 	app, err = client.Application.GetByClienId(context.Background(), "app_client_id")
 	if err != nil {
-		fmt.Printf("Error retrieving application: %v\n", err)
+		log.Printf("Error retrieving application: %v\n", err)
 		return
+	} else {
+		log.Printf("Found app %s with %s \n", app.Name, app)
 	}
-	fmt.Printf("Found app %s with %s \n", app.Name, app)
 
 	// Update application basic info.
 	basicInfoUpdatingAppId := "app-uuid"
@@ -124,10 +125,11 @@ func main() {
 
 	err = client.Application.UpdateBasicInfo(ctx, basicInfoUpdatingAppId, *basicInfoUpdate)
 	if err != nil {
-		fmt.Printf("Error updating application: %v\n", err)
+		log.Printf("Error updating application: %v\n", err)
 		return
+	} else {
+		log.Printf("Successfully updated basic info of app with ID: %s\n", basicInfoUpdatingAppId)
 	}
-	fmt.Printf("Successfully updated basic info of app with ID: %s\n", basicInfoUpdatingAppId)
 
 	// Update OAuth configuration for an SPA application
 	OAuthConfigUpdate := application.NewOAuthConfigUpdate().
@@ -142,17 +144,18 @@ func main() {
 	OAuthConfigUpdatingAppId := "app-uuid"
 	err = client.Application.UpdateOAuthConfig(ctx, OAuthConfigUpdatingAppId, *OAuthConfigUpdate)
 	if err != nil {
-		fmt.Printf("Error updating application: %v\n", err)
+		log.Printf("Error updating application: %v\n", err)
 		return
+	} else {
+		log.Printf("Successfully updated OAuth configuration for app with ID: %s\n", OAuthConfigUpdatingAppId)
 	}
-	fmt.Printf("Successfully updated OAuth configuration for app with ID: %s\n", OAuthConfigUpdatingAppId)
 
 	// Authorize API.
-	id := "api_resource_uuid"
+	apiResourceId := "api_resource_uuid"
 	policyIdentifier := "RBAC"
 	scopes := []string{"scope1", "scope2"}
 	authorizedAPI := application.AuthorizedAPICreateModel{
-		Id:               &id,
+		Id:               &apiResourceId,
 		PolicyIdentifier: &policyIdentifier,
 		Scopes:           &scopes,
 	}
@@ -160,19 +163,20 @@ func main() {
 	if err != nil {
 		log.Printf("Error authorizing API: %v", err)
 	} else {
-		log.Printf("API authorized successfully.")
+		log.Printf("Successfully authorized the API: %s\n.", apiResourceId)
 	}
 
 	// Generate a login flow.
 	prompt := "Username and password as the first step and email OTP as the second step."
 	loginFlowResponse, err := client.Application.GenerateLoginFlow(ctx, prompt)
-	fmt.Printf("Login flow response: %+v\n", loginFlowResponse)
+	log.Printf("Login flow response: %+v\n", loginFlowResponse)
 	if err != nil {
 		log.Printf("Error generating login flow: %v", err)
 		return
+	} else {
+		log.Printf("Login flow initiated. flow ID: %s", *loginFlowResponse.OperationId)
 	}
-	log.Printf("Login flow initiated. Flow ID: %s", *loginFlowResponse.OperationId)
-
+	
 	// Poll for the login flow generation status.
 	flowId := loginFlowResponse.OperationId
 	var statusResponse *application.LoginFlowStatusResponseModel
@@ -196,7 +200,7 @@ func main() {
 			}
 		}
 		// If the status is not complete, wait and poll again.
-		log.Printf("Login flow generation in progress. Retrying...")
+		log.Printf("Login flow generation in progress. retrying...")
 		time.Sleep(2 * time.Second)
 	}
 
@@ -205,8 +209,9 @@ func main() {
 	if err != nil {
 		log.Printf("Error getting login flow generation result: %v", err)
 		return
+	} else {
+		log.Printf("Login flow generation result: %+v", resultResponse.Data)
 	}
-	log.Printf("Login flow generation result: %+v", resultResponse.Data)
 
 	// Update the login flow.
 	appId := "app_uuid"

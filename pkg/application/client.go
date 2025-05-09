@@ -80,10 +80,10 @@ func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*Appli
 	}
 	resp, err := c.apiClient.GetAllApplicationsWithResponse(ctx, &params)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list applications: %w", err)
+		return nil, fmt.Errorf("failed to list applications: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to list applications: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to list applications: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return resp.JSON200, nil
 }
@@ -617,12 +617,12 @@ func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string
 
 	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to build available authenticators: %w", err)
+		return nil, fmt.Errorf("failed to build available authenticators: %w", err)
 	}
 
 	userClaims, err := c.buildUserClaimList(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to build user claims: %w", err)
+		return nil, fmt.Errorf("failed to build user claims: %w", err)
 	}
 	loginFlowGenerateRequest := internal.LoginFlowGenerateRequest{
 		AvailableAuthenticators: &availableAuthenticators,
@@ -631,10 +631,10 @@ func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string
 	}
 	resp, err := c.apiClient.GenerateLoginFlowWithResponse(ctx, loginFlowGenerateRequest)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate login flow: %w", err)
+		return nil, fmt.Errorf("failed to generate login flow: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return resp.JSON200, nil
 }
@@ -642,10 +642,10 @@ func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string
 func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponseModel, error) {
 	resp, err := c.apiClient.GetLoginFlowGenerationStatusWithResponse(ctx, flowId)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get login flow generation status: %w", err)
+		return nil, fmt.Errorf("failed to get login flow generation status: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to get login flow generation status: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to get login flow generation status: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return resp.JSON200, nil
 }
@@ -653,10 +653,10 @@ func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, fl
 func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponseModel, error) {
 	resp, err := c.apiClient.GetLoginFlowGenerationResultWithResponse(ctx, flowId)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get login flow generation result: %w", err)
+		return nil, fmt.Errorf("failed to get login flow generation result: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return resp.JSON200, nil
 }
@@ -667,10 +667,10 @@ func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, l
 	}
 	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, authenticationSequence)
 	if err != nil {
-		return fmt.Errorf("Failed to update login flow: %w", err)
+		return fmt.Errorf("failed to update login flow: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("Failed to update login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return fmt.Errorf("failed to update login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return nil
 }
@@ -678,11 +678,11 @@ func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, l
 func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (map[string]interface{}, error) {
 	authenticatorClient, err := authenticator.New(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create authenticator client: %w", err)
+		return nil, fmt.Errorf("failed to create authenticator client: %w", err)
 	}
 	localAuthenticators, err := authenticatorClient.ListLocalAuthenticators(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list local authenticators: %w", err)
+		return nil, fmt.Errorf("failed to list local authenticators: %w", err)
 	}
 
 	var moderatedAuthenticators []interface{}
@@ -699,9 +699,9 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 			"name":        *localAuthenticator.Name,
 		}
 
-		if authenticator.LocalAuthenticatorIDs.BackupCode == *localAuthenticator.Id {
+		if internal.LocalAuthenticatorIDs.BackupCode == *localAuthenticator.Id {
 			recoveryAuthenticators = append(recoveryAuthenticators, authenticatorData)
-		} else if _, exists := authenticator.SecondFactorAuthenticatorIDs[*localAuthenticator.Id]; exists {
+		} else if _, exists := internal.SecondFactorAuthenticatorIDs[*localAuthenticator.Id]; exists {
 			secondFactorAuthenticators = append(secondFactorAuthenticators, authenticatorData)
 		} else {
 			moderatedAuthenticators = append(moderatedAuthenticators, authenticatorData)
@@ -710,7 +710,7 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 
 	identityProviderClient, err := identity_provider.New(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create identity provider client: %w", err)
+		return nil, fmt.Errorf("failed to create identity provider client: %w", err)
 	}
 	requiredAttributes := "federatedAuthenticators"
 	getIDPListParams := identity_provider.IdentityProviderListParamsModel{
@@ -718,7 +718,7 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 	}
 	idpList, err := identityProviderClient.List(ctx, &getIDPListParams)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list identity providers: %w", err)
+		return nil, fmt.Errorf("failed to list identity providers: %w", err)
 	}
 
 	var enterpriseAuthenticators []interface{}
@@ -737,7 +737,7 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 			"name":        *idp.Name,
 		}
 
-		if _, exists := authenticator.SocialAuthenticatorIDs[*defaultAuthenticatorId]; exists {
+		if _, exists := internal.SocialAuthenticatorIDs[*defaultAuthenticatorId]; exists {
 			socialAuthenticators = append(socialAuthenticators, authenticatorData)
 		} else {
 			enterpriseAuthenticators = append(enterpriseAuthenticators, authenticatorData)
@@ -757,16 +757,16 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 func (c *ApplicationClient) buildUserClaimList(ctx context.Context) ([]map[string]interface{}, error) {
 	claimClient, err := claim.New(c.config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create claim client: %w", err)
+		return nil, fmt.Errorf("failed to create claim client: %w", err)
 	}
 
 	claims, err := claimClient.ListLocalClaims(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list local claims: %w", err)
+		return nil, fmt.Errorf("failed to list local claims: %w", err)
 	}
 
 	if claims == nil || *claims == nil {
-		return nil, fmt.Errorf("Failed to list local claims: empty response")
+		return nil, fmt.Errorf("failed to list local claims: empty response")
 	}
 
 	userClaims := []map[string]interface{}{}

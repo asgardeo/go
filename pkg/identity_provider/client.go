@@ -47,7 +47,7 @@ func New(cfg *config.ClientConfig) (*IdentityProviderClient, error) {
 		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create identity provider client: %w", err)
+		return nil, fmt.Errorf("failed to create identity provider client: %w", err)
 	}
 
 	return &IdentityProviderClient{
@@ -59,11 +59,11 @@ func New(cfg *config.ClientConfig) (*IdentityProviderClient, error) {
 func (c *IdentityProviderClient) List(ctx context.Context, idpGetParams *IdentityProviderListParamsModel) (*IdentityProviderListResponseModel, error) {
 	resp, err := c.apiClient.GetIDPsWithResponse(ctx, idpGetParams)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list identity providers: %w", err)
+		return nil, fmt.Errorf("failed to list identity providers: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to list identity providers: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to list identity providers: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 
 	return resp.JSON200, nil

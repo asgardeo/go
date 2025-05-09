@@ -20,7 +20,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -53,7 +52,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error listing API Resources: %v", err)
 	} else {
-		fmt.Printf("Found %d API Resources.\n", len(*apiResources.APIResources))
+		log.Printf("Found %d API Resources.\n", len(*apiResources.APIResources))
 	}
 
 	// Get a specific API resource by ID.
@@ -61,7 +60,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error getting API Resource: %v", err)
 	} else {
-		fmt.Printf("Found API Resource: %s\n", apiResource.Name)
+		log.Printf("Found API Resource: %s\n", apiResource.Name)
 	}
 
 	// Get API Resources by name.
@@ -69,7 +68,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error getting API Resources by name: %v", err)
 	} else {
-		fmt.Printf("Found %d API Resources by name.\n", len(*apiResourcesByName))
+		log.Printf("Found %d API Resources by name.\n", len(*apiResourcesByName))
 	}
 
 	// Get API Resource By Identifier.
@@ -77,6 +76,6 @@ func main() {
 	if err != nil {
 		log.Printf("Error getting API Resource by identifier: %v", err)
 	} else {
-		fmt.Printf("Found API Resource by identifier: %s\n", apiResourcesByIdentifier.Name)
+		log.Printf("Found API Resource by identifier: %s\n", apiResourcesByIdentifier.Name)
 	}
 }

@@ -47,7 +47,7 @@ func New(cfg *config.ClientConfig) (*UserClient, error) {
 		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create user client: %w", err)
+		return nil, fmt.Errorf("failed to create user client: %w", err)
 	}
 
 	return &UserClient{
@@ -60,10 +60,10 @@ func (c *UserClient) CreateUser(ctx context.Context, user UserCreateModel) (*htt
 	creationData := convertToAddUserJSONBodyModel(user)
 	resp, err := c.apiClient.AddUser(ctx, creationData)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create user: %w", err)
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("Failed to create user: %s", resp.Status)
+		return nil, fmt.Errorf("failed to create user: %s", resp.Status)
 	}
 	return resp, nil
 }
