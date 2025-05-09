@@ -48,7 +48,10 @@ type LoginFlowGenerateResponseModel = internal.LoginFlowGenerateResponse
 
 type LoginFlowStatusResponseModel = internal.LoginFlowStatusResponse
 
-type LoginFlowResultResponseModel = internal.LoginFlowResultResponse
+type LoginFlowResultResponseModel struct {
+	Data   *LoginFlowUpdateModel `json:"data,omitempty"`
+	Status *internal.StatusEnum  `json:"status,omitempty"`
+}
 
 type LoginFlowUpdateModel = internal.AuthenticationSequence
 
@@ -67,4 +70,25 @@ func convertToApplicationPatchModel(model ApplicationBasicInfoUpdateModel) inter
 		AccessUrl:       model.AccessUrl,
 		LogoutReturnUrl: model.LogoutReturnUrl,
 	}
+}
+
+func convertToLoginFlowResultResponseModel(model internal.LoginFlowResultResponse) LoginFlowResultResponseModel {
+	loginFlowUpdateData := convertToLoginFlowUpdateModel(model.Data)
+	return LoginFlowResultResponseModel{
+		Data:   &loginFlowUpdateData,
+		Status: model.Status,
+	}
+}
+
+func convertToLoginFlowUpdateModel(data *map[string]interface{}) LoginFlowUpdateModel {
+	var loginFlowUpdate LoginFlowUpdateModel
+	if data != nil {
+		loginFlowUpdate = LoginFlowUpdateModel{
+			AttributeStepId: (*data)["attributeStepId"].(*int),
+			Steps:           (*data)["steps"].(*[]LoginFlowStepModel),
+			SubjectStepId:   (*data)["subjectStepId"].(*int),
+			Type:            (*data)["type"].(*LoginFlowTypeModel),
+		}
+	}
+	return loginFlowUpdate
 }
