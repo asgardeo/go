@@ -113,7 +113,7 @@ func main() {
 	fmt.Printf("Found app %s with %s \n", app.Name, app)
 
 	// Update application basic info.
-	basicInfoUpdatingAppId:= "app-uuid"
+	basicInfoUpdatingAppId := "app-uuid"
 
 	basicInfoUpdate := application.NewBasicInfoUpdate().
 		WithName("app_name").
@@ -131,15 +131,15 @@ func main() {
 
 	// Update OAuth configuration for an SPA application
 	OAuthConfigUpdate := application.NewOAuthConfigUpdate().
-	WithAllowedOrigins([]string{"allowed_origin_url"}).
-	WithCallbackURLs([]string{"callback_url_1", "callback_url_2"}).
-	WithUserAccessTokenExpiry(3600).
-	WithApplicationAccessTokenExpiry(7200).
-	WithRefreshTokenExpiry(7200).
-	WithAccessTokenAttributes([]string{"email", "profile"})
+		WithAllowedOrigins([]string{"allowed_origin_url"}).
+		WithCallbackURLs([]string{"callback_url_1", "callback_url_2"}).
+		WithUserAccessTokenExpiry(3600).
+		WithApplicationAccessTokenExpiry(7200).
+		WithRefreshTokenExpiry(7200).
+		WithAccessTokenAttributes([]string{"email", "profile"})
 
 	// Update without type checking
-	OAuthConfigUpdatingAppId:= "app-uuid"
+	OAuthConfigUpdatingAppId := "app-uuid"
 	err = client.Application.UpdateOAuthConfig(ctx, OAuthConfigUpdatingAppId, *OAuthConfigUpdate)
 	if err != nil {
 		fmt.Printf("Error updating application: %v\n", err)
@@ -207,6 +207,45 @@ func main() {
 		return
 	}
 	log.Printf("Login flow generation result: %+v", resultResponse.Data)
+
+	// Update the login flow.
+	appId := "app_uuid"
+	attributeStepId := 1
+	steps := []application.LoginFlowStepModel{
+		{
+			Id: 1,
+			Options: []application.AuthenticatorModel{
+				{
+					Authenticator: "BasicAuthenticator",
+					Idp:           "LOCAL",
+				},
+			},
+		},
+		{
+			Id: 2,
+			Options: []application.AuthenticatorModel{
+				{
+					Authenticator: "email-otp-authenticator",
+					Idp:           "LOCAL",
+				},
+			},
+		},
+	}
+	subjectStepId := 1
+	var loginFlowType application.LoginFlowTypeModel = "USER_DEFINED"
+	loginFlowUpdate := application.LoginFlowUpdateModel{
+		AttributeStepId: &attributeStepId,
+		Steps:           &steps,
+		SubjectStepId:   &subjectStepId,
+		Type:            &loginFlowType,
+	}
+	err = client.Application.UpdateLoginFlow(ctx, appId, loginFlowUpdate)
+	if err != nil {
+		log.Printf("Error updating login flow: %v", err)
+		return
+	} else {
+		log.Printf("Login flow updated successfully.")
+	}
 }
 
 func toJSONString(app interface{}) string {
