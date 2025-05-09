@@ -179,6 +179,14 @@ func main() {
 		log.Printf("Successfully authorized the API: %s\n.", apiResourceId)
 	}
 
+	// Get authorized APIs.
+	authorizedAPIs, err := client.Application.GetAuthorizedAPIs(ctx, "app_uuid")
+	if err != nil {
+		log.Printf("Error getting authorized APIs: %v", err)
+	} else {
+		log.Printf("Authorized APIs: %s\n", toJSONString(authorizedAPIs))
+	}
+
 	// Generate a login flow.
 	prompt := "Username and password as the first step and email OTP as the second step."
 	loginFlowResponse, err := client.Application.GenerateLoginFlow(ctx, prompt)
@@ -189,7 +197,7 @@ func main() {
 	} else {
 		log.Printf("Login flow initiated. flow ID: %s", *loginFlowResponse.OperationId)
 	}
-	
+
 	// Poll for the login flow generation status.
 	flowId := loginFlowResponse.OperationId
 	var statusResponse *application.LoginFlowStatusResponseModel
