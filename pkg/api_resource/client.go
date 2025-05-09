@@ -51,7 +51,7 @@ func New(cfg *config.ClientConfig) (*APIResourceClient, error) {
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create api resource client: %w", err)
+		return nil, fmt.Errorf("failed to create api resource client: %w", err)
 	}
 
 	return &APIResourceClient{
@@ -63,10 +63,10 @@ func New(cfg *config.ClientConfig) (*APIResourceClient, error) {
 func (c *APIResourceClient) List(ctx context.Context, params *APIResourceListParamsModel) (*APIResourceListResponseModel, error) {
 	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list api resources: %w", err)
+		return nil, fmt.Errorf("failed to list api resources: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to list api resources: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to list api resources: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return resp.JSON200, nil
 }
@@ -74,10 +74,10 @@ func (c *APIResourceClient) List(ctx context.Context, params *APIResourceListPar
 func (c *APIResourceClient) Get(ctx context.Context, id string) (*APIResourceInfoResponseModel, error) {
 	resp, err := c.apiResourceClient.GetApiResourcesApiResourceIdWithResponse(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get api resource: %w", err)
+		return nil, fmt.Errorf("failed to get api resource: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to get api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to get api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return resp.JSON200, nil
 }
@@ -89,12 +89,11 @@ func (c *APIResourceClient) GetByName(ctx context.Context, name string) (*[]APIR
 	}
 	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, &params)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list api resources: %w", err)
+		return nil, fmt.Errorf("failed to list api resources: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to list api resources: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to list api resources: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
-	// Get the list of API resources from the response.
 	apiResources := resp.JSON200.APIResources
 	return apiResources, nil
 }
@@ -106,14 +105,14 @@ func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier stri
 	}
 	resp, err := c.apiResourceClient.GetAPIResourcesWithResponse(ctx, &params)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get api resource: %w", err)
+		return nil, fmt.Errorf("failed to get api resource: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to get api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to get api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	// Since the identifier is unique, we can return the first item in the list.
 	if len(*resp.JSON200.APIResources) == 0 {
-		return nil, fmt.Errorf("No API resource found with identifier: %s", identifier)
+		return nil, fmt.Errorf("no API resource found with identifier: %s", identifier)
 	}
 	return &(*resp.JSON200.APIResources)[0], nil
 }
@@ -121,10 +120,10 @@ func (c *APIResourceClient) GetByIdentifier(ctx context.Context, identifier stri
 func (c *APIResourceClient) Create(ctx context.Context, apiResource *APIResourceCreateModel) (*APIResourceInfoResponseModel, error) {
 	resp, err := c.apiResourceClient.AddAPIResourceWithResponse(ctx, *apiResource)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create api resource: %w", err)
+		return nil, fmt.Errorf("failed to create api resource: %w", err)
 	}
 	if resp.StatusCode() != http.StatusCreated {
-		return nil, fmt.Errorf("Failed to create api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+		return nil, fmt.Errorf("failed to create api resource: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 	return resp.JSON201, nil
 }

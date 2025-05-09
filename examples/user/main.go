@@ -20,7 +20,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -58,6 +57,6 @@ func main() {
 	if err != nil {
 		log.Printf("Error creating the user: %v", err)
 	} else {
-		fmt.Printf("User created successfully. Response: %v\n", resp)
+		log.Printf("User created successfully. response: %v\n", resp)
 	}
 }

@@ -20,7 +20,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -50,6 +49,6 @@ func main() {
 	if err != nil {
 		log.Printf("Error listing Identity Providers: %v", err)
 	} else {
-		fmt.Printf("Found %d Identity Providers.\n", len(*identityProviders.IdentityProviders))
+		log.Printf("Found %d Identity Providers.\n", len(*identityProviders.IdentityProviders))
 	}
 }

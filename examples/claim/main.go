@@ -20,7 +20,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -47,8 +46,8 @@ func main() {
 	// List Claims.
 	claims, err := client.Claim.ListLocalClaims(ctx)
 	if err != nil {
-		log.Printf("Error listing Claims: %v", err)
+		log.Printf("Error listing claims: %v", err)
 	} else {
-		fmt.Printf("Found %d Claims.\n", len(*claims))
+		log.Printf("Found %d claims.\n", len(*claims))
 	}
 }

@@ -47,7 +47,7 @@ func New(cfg *config.ClientConfig) (*AuthenticatorClient, error) {
 		internal.WithRequestEditorFn(typedAuthEditorFn),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create authenticator client: %w", err)
+		return nil, fmt.Errorf("failed to create authenticator client: %w", err)
 	}
 
 	return &AuthenticatorClient{
@@ -59,11 +59,11 @@ func New(cfg *config.ClientConfig) (*AuthenticatorClient, error) {
 func (c *AuthenticatorClient) List(ctx context.Context, params *AuthenticatorListParamsModel) (*AuthenticatorListResponseModel, error) {
 	resp, err := c.apiClient.GetAuthenticatorsWithResponse(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list authenticators: %w", err)
+		return nil, fmt.Errorf("failed to list authenticators: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to list authenticators: %s", resp.Body)
+		return nil, fmt.Errorf("failed to list authenticators: %s", resp.Body)
 	}
 
 	return resp.JSON200, nil
@@ -72,15 +72,15 @@ func (c *AuthenticatorClient) List(ctx context.Context, params *AuthenticatorLis
 func (c *AuthenticatorClient) ListLocalAuthenticators(ctx context.Context) (*AuthenticatorListResponseModel, error) {
 	resp, err := c.apiClient.GetAuthenticatorsWithResponse(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list local authenticators: %w", err)
+		return nil, fmt.Errorf("failed to list local authenticators: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("Failed to list local authenticators: %s", resp.Body)
+		return nil, fmt.Errorf("failed to list local authenticators: %s", resp.Body)
 	}
 	allAuthenticators := resp.JSON200
 	if allAuthenticators == nil {
-		return nil, fmt.Errorf("Failed to list local authenticators: %s", resp.Body)
+		return nil, fmt.Errorf("failed to list local authenticators: %s", resp.Body)
 	}
 	localAuthenticators := make([]AuthenticatorInfoResponseModel, 0)
 	for _, authenticator := range *allAuthenticators {
