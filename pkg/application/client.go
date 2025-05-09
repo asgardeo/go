@@ -73,10 +73,11 @@ func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*Appli
 	if offset < 0 {
 		offset = defaultOffset
 	}
-
+	excludeSystemPortals := true
 	params := internal.GetAllApplicationsParams{
-		Limit:  &limit,
-		Offset: &offset,
+		Limit:                &limit,
+		Offset:               &offset,
+		ExcludeSystemPortals: &excludeSystemPortals,
 	}
 	resp, err := c.apiClient.GetAllApplicationsWithResponse(ctx, &params)
 	if err != nil {
