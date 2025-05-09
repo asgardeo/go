@@ -100,7 +100,7 @@ func (c *ApplicationClient) CreateSinglePageApp(ctx context.Context, name string
 		return nil, fmt.Errorf("failed to create SPA: %w", err)
 	}
 
-	return c.processCreatePublicClientAppResponse(ctx, resp, name, redirectURL)
+	return c.processCreateAppResponse(ctx, resp, name, true, &redirectURL)
 }
 
 // CreateMobileApp creates a new Mobile Application with sensible defaults
@@ -115,7 +115,7 @@ func (c *ApplicationClient) CreateMobileApp(ctx context.Context, name string, re
 		return nil, fmt.Errorf("failed to create mobile app: %w", err)
 	}
 
-	return c.processCreatePublicClientAppResponse(ctx, resp, name, redirectURL)
+	return c.processCreateAppResponse(ctx, resp, name, true, &redirectURL)
 }
 
 // CreateM2MApp creates a new Machine-to-Machine (M2M) Application
@@ -130,7 +130,22 @@ func (c *ApplicationClient) CreateM2MApp(ctx context.Context, name string) (*App
 		return nil, fmt.Errorf("failed to create M2M app: %w", err)
 	}
 
-	return c.processCreateConfidentialClientAppResponse(ctx, resp, name)
+	return c.processCreateM2MAppResponse(ctx, resp, name)
+}
+
+// CreateWebAppWithSSR creates a new Web Application with Server-Side Rendering support
+func (c *ApplicationClient) CreateWebAppWithSSR(ctx context.Context, name string, redirectURL string) (*ApplicationBasicInfoResponseModel, error) {
+	appRequest, err := c.buildWebAppWithSSRRequest(name, redirectURL)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.apiClient.CreateApplicationWithResponse(ctx, nil, appRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSR webapp: %w", err)
+	}
+
+	return c.processCreateAppResponse(ctx, resp, name, false, &redirectURL)
 }
 
 // GetByName finds an application by name and returns its details
@@ -476,7 +491,69 @@ func (c *ApplicationClient) buildM2MAppRequest(name string) (internal.Applicatio
 	}, nil
 }
 
-func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name, redirectURL string) (*ApplicationBasicInfoResponseModel, error) {
+func (c *ApplicationClient) buildWebAppWithSSRRequest(name, redirectURL string) (internal.ApplicationModel, error) {
+	defaultAuthenticationSequenceType := internal.DEFAULT
+	defaultClaimDialect := internal.LOCAL
+
+	return internal.ApplicationModel{
+		Name: name,
+		AdvancedConfigurations: &internal.AdvancedApplicationConfiguration{
+			DiscoverableByEndUsers: boolPtr(false),
+			SkipLogoutConsent:      boolPtr(true),
+			SkipLoginConsent:       boolPtr(true),
+		},
+		AuthenticationSequence: &internal.AuthenticationSequence{
+			Type: &defaultAuthenticationSequenceType,
+			Steps: &[]internal.AuthenticationStepModel{
+				{
+					Id: 1,
+					Options: []internal.Authenticator{
+						{
+							Idp:           "LOCAL",
+							Authenticator: "basic",
+						},
+					},
+				},
+			},
+		},
+		ClaimConfiguration: &internal.ClaimConfiguration{
+			Dialect: &defaultClaimDialect,
+			RequestedClaims: &[]internal.RequestedClaimConfiguration{
+				{
+					Claim: internal.Claim{
+						Uri: "http://wso2.org/claims/username",
+					},
+				},
+			},
+		},
+		InboundProtocolConfiguration: &internal.InboundProtocols{
+			Oidc: &internal.OpenIDConnectConfiguration{
+				GrantTypes:   []string{"authorization_code"},
+				CallbackURLs: &[]string{redirectURL},
+				AllowedOrigins: &[]string{},
+				PublicClient: boolPtr(false),
+				RefreshToken: &internal.RefreshTokenConfiguration{
+					ExpiryInSeconds: int64Ptr(86400),
+				},
+				// Including access token configuration appropriate for SSR webapps
+				AccessToken: &internal.AccessTokenConfiguration{
+					ApplicationAccessTokenExpiryInSeconds: int64Ptr(3600),
+					BindingType:                          stringPtr("cookie"),
+					RevokeTokensWhenIDPSessionTerminated: boolPtr(true),
+					Type:                                stringPtr("JWT"),
+					UserAccessTokenExpiryInSeconds:       int64Ptr(3600),
+				},
+			},
+		},
+		TemplateId: stringPtr("b9c5e11e-fc78-484b-9bec-015d247561b8"), // Web application template
+		AssociatedRoles: &internal.AssociatedRolesConfig{
+			AllowedAudience: internal.APPLICATION,
+			Roles:           &[]internal.Role{},
+		},
+	}, nil
+}
+
+func (c *ApplicationClient) processCreateAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name string, isPublicClient bool, redirectURL *string) (*ApplicationBasicInfoResponseModel, error) {
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
@@ -496,21 +573,36 @@ func (c *ApplicationClient) processCreatePublicClientAppResponse(ctx context.Con
 		return nil, err
 	}
 
-	appDetails, err := c.fetchApplicationDetails(ctx, appID)
+	if isPublicClient {
+		appDetails, err := c.fetchApplicationDetails(ctx, appID)
+		if err != nil {
+			return nil, fmt.Errorf("created application but failed to fetch details: %w", err)
+		}
+
+		return &ApplicationBasicInfoResponseModel{
+			Id:               appID,
+			Name:             name,
+			ClientId:         *appDetails.ClientId,
+			RedirectURL:      *redirectURL,
+			AuthorizedScopes: "openid profile email",
+		}, nil
+	}
+
+	oauthDetails, err := c.fetchInboundOAuthDetails(ctx, appID)
 	if err != nil {
-		return nil, fmt.Errorf("created application but failed to fetch details: %w", err)
+		return nil, fmt.Errorf("failed to fetch OAuth client credentials: %w", err)
 	}
 
 	return &ApplicationBasicInfoResponseModel{
 		Id:               appID,
 		Name:             name,
-		ClientId:         *appDetails.ClientId,
-		RedirectURL:      redirectURL,
+		ClientId:         *oauthDetails.ClientId,
+		ClientSecret:     *oauthDetails.ClientSecret,
 		AuthorizedScopes: "openid profile email",
 	}, nil
 }
 
-func (c *ApplicationClient) processCreateConfidentialClientAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name string) (*ApplicationBasicInfoResponseModel, error) {
+func (c *ApplicationClient) processCreateM2MAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name string) (*ApplicationBasicInfoResponseModel, error) {
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
