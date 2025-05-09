@@ -48,7 +48,10 @@ type LoginFlowGenerateResponseModel = internal.LoginFlowGenerateResponse
 
 type LoginFlowStatusResponseModel = internal.LoginFlowStatusResponse
 
-type LoginFlowResultResponseModel = internal.LoginFlowResultResponse
+type LoginFlowResultResponseModel struct {
+	Data   *LoginFlowUpdateModel `json:"data,omitempty"`
+	Status *internal.StatusEnum  `json:"status,omitempty"`
+}
 
 type LoginFlowUpdateModel = internal.AuthenticationSequence
 
@@ -67,4 +70,75 @@ func convertToApplicationPatchModel(model ApplicationBasicInfoUpdateModel) inter
 		AccessUrl:       model.AccessUrl,
 		LogoutReturnUrl: model.LogoutReturnUrl,
 	}
+}
+
+func convertToLoginFlowResultResponseModel(model internal.LoginFlowResultResponse) LoginFlowResultResponseModel {
+	loginFlowUpdateData := convertToLoginFlowUpdateModel(*model.Data)
+	return LoginFlowResultResponseModel{
+		Data:   &loginFlowUpdateData,
+		Status: model.Status,
+	}
+}
+
+func convertToLoginFlowUpdateModel(data map[string]interface{}) LoginFlowUpdateModel {
+	var loginFlowUpdate LoginFlowUpdateModel
+	if data != nil {
+		attributeStepId := int(data["attributeStepId"].(float64))
+		subjectStepId := int(data["subjectStepId"].(float64))
+		steps := convertToLoginFlowStepModelList(data["steps"].([]interface{}))
+		loginFlowType := LoginFlowTypeModel(data["type"].(string))
+		loginFlowUpdate = LoginFlowUpdateModel{
+			AttributeStepId: &attributeStepId,
+			Steps:           &steps,
+			SubjectStepId:   &subjectStepId,
+			Type:            &loginFlowType,
+		}
+	}
+	return loginFlowUpdate
+}
+
+func convertToLoginFlowStepModelList(data []interface{}) []LoginFlowStepModel {
+	var loginFlowStepList []LoginFlowStepModel
+	if data != nil {
+		for _, item := range data {
+			step := item.(map[string]interface{})
+			loginFlowStepList = append(loginFlowStepList, convertToLoginFlowStepModel(step))
+		}
+	}
+	return loginFlowStepList
+}
+
+func convertToLoginFlowStepModel(data map[string]interface{}) LoginFlowStepModel {
+	var loginFlowStep LoginFlowStepModel
+	if data != nil {
+		id := int(data["id"].(float64))
+		options := convertToAuthenticatorList(data["options"].([]interface{}))
+		loginFlowStep = LoginFlowStepModel{
+			Id:      id,
+			Options: options,
+		}
+	}
+	return loginFlowStep
+}
+
+func convertToAuthenticatorList(data []interface{}) []AuthenticatorModel {
+	var authenticators []AuthenticatorModel
+	if data != nil {
+		for _, item := range data {
+			authenticator := item.(map[string]interface{})
+			authenticators = append(authenticators, convertToAuthenticatorModel(authenticator))
+		}
+	}
+	return authenticators
+}
+
+func convertToAuthenticatorModel(data map[string]interface{}) AuthenticatorModel {
+	var authenticatorModel AuthenticatorModel
+	if data != nil {
+		authenticatorModel = AuthenticatorModel{
+			Authenticator: data["authenticator"].(string),
+			Idp:           data["idp"].(string),
+		}
+	}
+	return authenticatorModel
 }

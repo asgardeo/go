@@ -658,7 +658,8 @@ func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, fl
 	if resp.StatusCode() != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
-	return resp.JSON200, nil
+	loginFlowResultResponse := convertToLoginFlowResultResponseModel(*resp.JSON200)
+	return &loginFlowResultResponse, nil
 }
 
 func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, loginFlowUpdateRequest LoginFlowUpdateModel) error {
