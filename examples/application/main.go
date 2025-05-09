@@ -95,6 +95,19 @@ func main() {
 		log.Printf("Created M2M App with %s \n", toJSONString(m2mApp))
 	}
 
+	// Create a SSR webapp app with name and redirect URL
+	ssrWebApp, err := client.Application.CreateWebAppWithSSR(
+		ctx,
+		"ssr-webapp-name",
+		"https://example.com/callback",
+	)
+
+	if err != nil {
+		log.Printf("Error creating application: %v", err)
+	} else {
+		log.Printf("Created Web App with SSR with %s \n", toJSONString(ssrWebApp))
+	}
+
 	// Get application by name
 	app, err := client.Application.GetByName(context.Background(), "app_name")
 	if err != nil {
