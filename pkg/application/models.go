@@ -22,13 +22,25 @@ import (
 	"github.com/asgardeo/go/pkg/application/internal"
 )
 
+// AppType represents the type of application
+type AppType string
+
+// Application types as typed constants
+const (
+	AppTypeSPA    AppType = "spa"
+	AppTypeMobile AppType = "mobile"
+	AppTypeM2M    AppType = "m2m"
+	AppTypeSSRWeb AppType = "ssr_web"
+)
+
 type ApplicationBasicInfoResponseModel struct {
-	Id               string `json:"id"`
-	Name             string `json:"name"`
-	ClientId         string `json:"client_id"`
-	ClientSecret     string `json:"client_secret"`
-	RedirectURL      string `json:"redirect_url"`
-	AuthorizedScopes string `json:"scope"`
+	Id               string  `json:"id"`
+	Name             string  `json:"name"`
+	ClientId         string  `json:"client_id,omitempty"`
+	ClientSecret     string  `json:"client_secret,omitempty"`
+	RedirectURL      string  `json:"redirect_url,omitempty"`
+	AuthorizedScopes string  `json:"scope,omitempty"`
+	AppType          AppType `json:"application_type"`
 }
 
 type ApplicationListResponseModel = internal.ApplicationListResponse

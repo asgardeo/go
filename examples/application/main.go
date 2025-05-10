@@ -109,7 +109,7 @@ func main() {
 	}
 
 	// Get application by name
-	app, err := client.Application.GetByName(context.Background(), "app_name")
+	app, err := client.Application.GetByName(ctx, "spa_name")
 	if err != nil {
 		log.Printf("Error retrieiving application: %v\n", err)
 		return

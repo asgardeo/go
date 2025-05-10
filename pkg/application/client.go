@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/asgardeo/go/pkg/application/internal"
 	"github.com/asgardeo/go/pkg/authenticator"
@@ -101,7 +102,7 @@ func (c *ApplicationClient) CreateSinglePageApp(ctx context.Context, name string
 		return nil, fmt.Errorf("failed to create SPA: %w", err)
 	}
 
-	return c.processCreateAppResponse(ctx, resp, name, true, &redirectURL)
+	return c.processCreateAppResponse(ctx, resp, name, AppTypeSPA, &redirectURL)
 }
 
 // CreateMobileApp creates a new Mobile Application with sensible defaults
@@ -116,7 +117,7 @@ func (c *ApplicationClient) CreateMobileApp(ctx context.Context, name string, re
 		return nil, fmt.Errorf("failed to create mobile app: %w", err)
 	}
 
-	return c.processCreateAppResponse(ctx, resp, name, true, &redirectURL)
+	return c.processCreateAppResponse(ctx, resp, name, AppTypeMobile, &redirectURL)
 }
 
 // CreateM2MApp creates a new Machine-to-Machine (M2M) Application
@@ -131,7 +132,7 @@ func (c *ApplicationClient) CreateM2MApp(ctx context.Context, name string) (*App
 		return nil, fmt.Errorf("failed to create M2M app: %w", err)
 	}
 
-	return c.processCreateM2MAppResponse(ctx, resp, name)
+	return c.processCreateAppResponse(ctx, resp, name, AppTypeM2M, nil)
 }
 
 // CreateWebAppWithSSR creates a new Web Application with Server-Side Rendering support
@@ -146,7 +147,7 @@ func (c *ApplicationClient) CreateWebAppWithSSR(ctx context.Context, name string
 		return nil, fmt.Errorf("failed to create SSR webapp: %w", err)
 	}
 
-	return c.processCreateAppResponse(ctx, resp, name, false, &redirectURL)
+	return c.processCreateAppResponse(ctx, resp, name, AppTypeSSRWeb, &redirectURL)
 }
 
 // GetByName finds an application by name and returns its details
@@ -314,22 +315,27 @@ func (c *ApplicationClient) UpdateOAuthConfig(ctx context.Context, applicationId
 	}
 
 	if config.CallbackURLs != nil {
-		// iterate over call backs and construct "regexp=(callback1|callback2|...|callbackN)"
-		var callbackRegex string
-		for i, callback := range *config.CallbackURLs {
-			if i == 0 {
-				callbackRegex = fmt.Sprintf("regexp=(%s", callback)
-			} else {
-				callbackRegex = fmt.Sprintf("%s|%s", callbackRegex, callback)
-			}
-		}
-		if len(*config.CallbackURLs) > 0 {
-			callbackRegex = fmt.Sprintf("%s)", callbackRegex)
+		if len(*config.CallbackURLs) == 1 {
+			// If there's only one callback URL, use it directly without "regexp="
+			updatedConfig.CallbackURLs = config.CallbackURLs
 		} else {
-			callbackRegex = ""
-		}
+			// Construct "regexp=(callback1|callback2|...|callbackN)" for multiple callback URLs
+			var callbackRegex string
+			for i, callback := range *config.CallbackURLs {
+				if i == 0 {
+					callbackRegex = fmt.Sprintf("regexp=(%s", callback)
+				} else {
+					callbackRegex = fmt.Sprintf("%s|%s", callbackRegex, callback)
+				}
+			}
+			if len(*config.CallbackURLs) > 0 {
+				callbackRegex = fmt.Sprintf("%s)", callbackRegex)
+			} else {
+				callbackRegex = ""
+			}
 
-		updatedConfig.CallbackURLs = &[]string{callbackRegex}
+			updatedConfig.CallbackURLs = &[]string{callbackRegex}
+		}
 	}
 
 	if config.Logout != nil {
@@ -543,20 +549,20 @@ func (c *ApplicationClient) buildWebAppWithSSRRequest(name, redirectURL string) 
 		},
 		InboundProtocolConfiguration: &internal.InboundProtocols{
 			Oidc: &internal.OpenIDConnectConfiguration{
-				GrantTypes:   []string{"authorization_code"},
-				CallbackURLs: &[]string{redirectURL},
+				GrantTypes:     []string{"authorization_code"},
+				CallbackURLs:   &[]string{redirectURL},
 				AllowedOrigins: &[]string{},
-				PublicClient: boolPtr(false),
+				PublicClient:   boolPtr(false),
 				RefreshToken: &internal.RefreshTokenConfiguration{
 					ExpiryInSeconds: int64Ptr(86400),
 				},
 				// Including access token configuration appropriate for SSR webapps
 				AccessToken: &internal.AccessTokenConfiguration{
 					ApplicationAccessTokenExpiryInSeconds: int64Ptr(3600),
-					BindingType:                          stringPtr("cookie"),
-					RevokeTokensWhenIDPSessionTerminated: boolPtr(true),
-					Type:                                stringPtr("JWT"),
-					UserAccessTokenExpiryInSeconds:       int64Ptr(3600),
+					BindingType:                           stringPtr("cookie"),
+					RevokeTokensWhenIDPSessionTerminated:  boolPtr(true),
+					Type:                                  stringPtr("JWT"),
+					UserAccessTokenExpiryInSeconds:        int64Ptr(3600),
 				},
 			},
 		},
@@ -568,7 +574,7 @@ func (c *ApplicationClient) buildWebAppWithSSRRequest(name, redirectURL string) 
 	}, nil
 }
 
-func (c *ApplicationClient) processCreateAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name string, isPublicClient bool, redirectURL *string) (*ApplicationBasicInfoResponseModel, error) {
+func (c *ApplicationClient) processCreateAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name string, appType AppType, redirectURL *string) (*ApplicationBasicInfoResponseModel, error) {
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
 			resp.StatusCode(), string(resp.Body))
@@ -588,7 +594,7 @@ func (c *ApplicationClient) processCreateAppResponse(ctx context.Context, resp *
 		return nil, err
 	}
 
-	if isPublicClient {
+	if appType == AppTypeSPA || appType == AppTypeMobile {
 		appDetails, err := c.fetchApplicationDetails(ctx, appID)
 		if err != nil {
 			return nil, fmt.Errorf("created application but failed to fetch details: %w", err)
@@ -600,6 +606,7 @@ func (c *ApplicationClient) processCreateAppResponse(ctx context.Context, resp *
 			ClientId:         *appDetails.ClientId,
 			RedirectURL:      *redirectURL,
 			AuthorizedScopes: "openid profile email",
+			AppType:          appType,
 		}, nil
 	}
 
@@ -608,46 +615,30 @@ func (c *ApplicationClient) processCreateAppResponse(ctx context.Context, resp *
 		return nil, fmt.Errorf("failed to fetch OAuth client credentials: %w", err)
 	}
 
-	return &ApplicationBasicInfoResponseModel{
-		Id:               appID,
-		Name:             name,
-		ClientId:         *oauthDetails.ClientId,
-		ClientSecret:     *oauthDetails.ClientSecret,
-		AuthorizedScopes: "openid profile email",
-	}, nil
-}
-
-func (c *ApplicationClient) processCreateM2MAppResponse(ctx context.Context, resp *internal.CreateApplicationResponse, name string) (*ApplicationBasicInfoResponseModel, error) {
-	if resp.StatusCode() != http.StatusCreated {
-		return nil, fmt.Errorf("failed to create application: status %d, body: %s",
-			resp.StatusCode(), string(resp.Body))
+	if appType == AppTypeSSRWeb {
+		return &ApplicationBasicInfoResponseModel{
+			Id:               appID,
+			Name:             name,
+			ClientId:         *oauthDetails.ClientId,
+			ClientSecret:     *oauthDetails.ClientSecret,
+			AuthorizedScopes: "openid profile email",
+			AppType:          appType,
+		}, nil
 	}
 
-	if resp.HTTPResponse == nil {
-		return nil, fmt.Errorf("unexpected empty HTTP response")
+	if appType == AppTypeM2M {
+
+		return &ApplicationBasicInfoResponseModel{
+			Id:               appID,
+			Name:             name,
+			ClientId:         *oauthDetails.ClientId,
+			ClientSecret:     *oauthDetails.ClientSecret,
+			AuthorizedScopes: "openid profile email",
+			AppType:          appType,
+		}, nil
 	}
 
-	locationHeader := resp.HTTPResponse.Header.Get("Location")
-	if locationHeader == "" {
-		return nil, fmt.Errorf("location header is missing in the response")
-	}
-
-	appID, err := extractApplicationID(locationHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	oauthDetails, err := c.fetchInboundOAuthDetails(ctx, appID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch OAuth client credentials: %w", err)
-	}
-
-	return &ApplicationBasicInfoResponseModel{
-		Id:           appID,
-		Name:         name,
-		ClientId:     *oauthDetails.ClientId,
-		ClientSecret: *oauthDetails.ClientSecret,
-	}, nil
+	return nil, err
 }
 
 func (c *ApplicationClient) fetchInboundOAuthDetails(ctx context.Context, appID string) (*internal.OpenIDConnectConfiguration, error) {
@@ -692,6 +683,11 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 		return nil, fmt.Errorf("failed to get application details: %w", err)
 	}
 
+	oauthDetails, err := c.fetchInboundOAuthDetails(ctx, appID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OAuth details: %w", err)
+	}
+
 	result := &ApplicationBasicInfoResponseModel{
 		Id:   appID,
 		Name: appDetails.Name,
@@ -701,23 +697,48 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 		result.ClientId = *appDetails.ClientId
 	}
 
-	isM2MApp := false
-	if appDetails.TemplateId != nil && *appDetails.TemplateId == "m2m-application" {
-		isM2MApp = true
+	appType, err := determineAppType(appDetails)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine application type: %w", err)
 	}
 
-	if isM2MApp {
-		oauthDetails, err := c.fetchInboundOAuthDetails(ctx, appID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get OAuth details: %w", err)
-		}
-
+	if appType == AppTypeM2M || appType == AppTypeSSRWeb {
 		if oauthDetails.ClientSecret != nil {
 			result.ClientSecret = *oauthDetails.ClientSecret
 		}
 	}
 
+	if appType == AppTypeSPA || appType == AppTypeMobile || appType == AppTypeSSRWeb {
+		if oauthDetails.CallbackURLs != nil && len(*oauthDetails.CallbackURLs) > 0 {
+			firstCallback := (*oauthDetails.CallbackURLs)[0]
+			if strings.HasPrefix(firstCallback, "regexp=") {
+				// Extract URLs from the "regexp=(url1|url2|...|urlN)" format
+				regexContent := strings.TrimPrefix(firstCallback, "regexp=")
+				urls := strings.Split(strings.Trim(regexContent, "()"), "|")
+				result.RedirectURL = strings.Join(urls, ",")
+			} else {
+				result.RedirectURL = firstCallback
+			}
+		}
+	}
+
 	return result, nil
+}
+
+func determineAppType(appDetails *internal.ApplicationResponseModel) (AppType, error) {
+	if appDetails.TemplateId != nil {
+		switch *appDetails.TemplateId {
+		case "6a90e4b0-fbff-42d7-bfde-1efd98f07cd7": // SPA Template ID
+			return AppTypeSPA, nil
+		case "mobile-application": // Mobile App Template ID
+			return AppTypeMobile, nil
+		case "m2m-application": // M2M Template ID
+			return AppTypeM2M, nil
+		case "b9c5e11e-fc78-484b-9bec-015d247561b8": // Web App with SSR Template ID
+			return AppTypeSSRWeb, nil
+		}
+	}
+	return "", fmt.Errorf("unknown application type")
 }
 
 func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponseModel, error) {
