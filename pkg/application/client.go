@@ -688,9 +688,31 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 		return nil, fmt.Errorf("failed to get OAuth details: %w", err)
 	}
 
+	authorizedAPIs, err := c.GetAuthorizedAPIs(ctx, appID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get authorized APIs: %w", err)
+	}
+
+	authorizedScopes := ""
+	scopeSet := make(map[string]struct{})
+	if authorizedAPIs != nil {
+		for _, api := range *authorizedAPIs {
+			if api.AuthorizedScopes != nil {
+				for _, scope := range *api.AuthorizedScopes {
+					scopeSet[*scope.Name] = struct{}{}
+				}
+			}
+		}
+	}
+
+	var scopes []string
+	for scope := range scopeSet {
+		scopes = append(scopes, scope)
+	}
+
 	result := &ApplicationBasicInfoResponseModel{
-		Id:   appID,
-		Name: appDetails.Name,
+		Id:               appID,
+		Name:             appDetails.Name,
 	}
 
 	if appDetails.ClientId != nil {
@@ -708,6 +730,12 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 		}
 	}
 
+	if appType == AppTypeM2M {
+		if len(scopes) > 0 {
+			result.AuthorizedScopes = strings.Join(scopes, " ")
+		}
+	}
+
 	if appType == AppTypeSPA || appType == AppTypeMobile || appType == AppTypeSSRWeb {
 		if oauthDetails.CallbackURLs != nil && len(*oauthDetails.CallbackURLs) > 0 {
 			firstCallback := (*oauthDetails.CallbackURLs)[0]
@@ -719,6 +747,12 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 			} else {
 				result.RedirectURL = firstCallback
 			}
+		}
+
+		// todo: add open id connect scopes based on claim configuration
+		authorizedScopes = " openid profile email"
+		if len(scopes) > 0 {
+			result.AuthorizedScopes = authorizedScopes + strings.Join(scopes, " ")
 		}
 	}
 
