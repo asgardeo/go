@@ -67,6 +67,7 @@ func New(cfg *config.ClientConfig) (*ApplicationClient, error) {
 	}, nil
 }
 
+// List retrieves a list of applications with pagination support
 func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*ApplicationListResponseModel, error) {
 	if limit <= 0 {
 		limit = defaultLimit
@@ -361,6 +362,73 @@ func (c *ApplicationClient) UpdateOAuthConfig(ctx context.Context, applicationId
 	}
 
 	return nil
+}
+
+// UpdateLoginFlow updates the login flow of an existing application.
+func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, loginFlowUpdateRequest LoginFlowUpdateModel) error {
+	authenticationSequence := internal.ApplicationPatchModel{
+		AuthenticationSequence: &loginFlowUpdateRequest,
+	}
+	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, authenticationSequence)
+	if err != nil {
+		return fmt.Errorf("failed to update login flow: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("failed to update login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return nil
+}
+
+// GenerateLoginFlow initiates the login flow generation process for an application.
+func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponseModel, error) {
+
+	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build available authenticators: %w", err)
+	}
+
+	userClaims, err := c.buildUserClaimList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build user claims: %w", err)
+	}
+	loginFlowGenerateRequest := internal.LoginFlowGenerateRequest{
+		AvailableAuthenticators: &availableAuthenticators,
+		UserClaims:              &userClaims,
+		UserQuery:               &prompt,
+	}
+	resp, err := c.apiClient.GenerateLoginFlowWithResponse(ctx, loginFlowGenerateRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate login flow: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+// GetLoginFlowGenerationStatus retrieves the status of the login flow generation process.
+func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponseModel, error) {
+	resp, err := c.apiClient.GetLoginFlowGenerationStatusWithResponse(ctx, flowId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get login flow generation status: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to get login flow generation status: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+// GetLoginFlowGenerationResult retrieves the result of the login flow generation process.
+func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponseModel, error) {
+	resp, err := c.apiClient.GetLoginFlowGenerationResultWithResponse(ctx, flowId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get login flow generation result: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	loginFlowResultResponse := convertToLoginFlowResultResponseModel(*resp.JSON200)
+	return &loginFlowResultResponse, nil
 }
 
 func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (internal.ApplicationModel, error) {
@@ -773,69 +841,6 @@ func determineAppType(appDetails *internal.ApplicationResponseModel) (AppType, e
 		}
 	}
 	return "", fmt.Errorf("unknown application type")
-}
-
-func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponseModel, error) {
-
-	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build available authenticators: %w", err)
-	}
-
-	userClaims, err := c.buildUserClaimList(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build user claims: %w", err)
-	}
-	loginFlowGenerateRequest := internal.LoginFlowGenerateRequest{
-		AvailableAuthenticators: &availableAuthenticators,
-		UserClaims:              &userClaims,
-		UserQuery:               &prompt,
-	}
-	resp, err := c.apiClient.GenerateLoginFlowWithResponse(ctx, loginFlowGenerateRequest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate login flow: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	return resp.JSON200, nil
-}
-
-func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponseModel, error) {
-	resp, err := c.apiClient.GetLoginFlowGenerationStatusWithResponse(ctx, flowId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get login flow generation status: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get login flow generation status: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	return resp.JSON200, nil
-}
-
-func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponseModel, error) {
-	resp, err := c.apiClient.GetLoginFlowGenerationResultWithResponse(ctx, flowId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get login flow generation result: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	loginFlowResultResponse := convertToLoginFlowResultResponseModel(*resp.JSON200)
-	return &loginFlowResultResponse, nil
-}
-
-func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, loginFlowUpdateRequest LoginFlowUpdateModel) error {
-	authenticationSequence := internal.ApplicationPatchModel{
-		AuthenticationSequence: &loginFlowUpdateRequest,
-	}
-	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, authenticationSequence)
-	if err != nil {
-		return fmt.Errorf("failed to update login flow: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("failed to update login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	return nil
 }
 
 func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (map[string]interface{}, error) {
