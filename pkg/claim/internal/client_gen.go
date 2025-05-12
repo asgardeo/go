@@ -4,27 +4,75 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"gopkg.in/yaml.v2"
+
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
+)
+
+const (
+	BasicAuthScopes = "BasicAuth.Scopes"
+	OAuth2Scopes    = "OAuth2.Scopes"
+)
+
+// Defines values for LocalClaimReqSharedProfileValueResolvingMethod.
+const (
+	LocalClaimReqSharedProfileValueResolvingMethodFromFirstFoundInHierarchy LocalClaimReqSharedProfileValueResolvingMethod = "FromFirstFoundInHierarchy"
+	LocalClaimReqSharedProfileValueResolvingMethodFromOrigin                LocalClaimReqSharedProfileValueResolvingMethod = "FromOrigin"
+	LocalClaimReqSharedProfileValueResolvingMethodFromSharedProfile         LocalClaimReqSharedProfileValueResolvingMethod = "FromSharedProfile"
+)
+
+// Defines values for LocalClaimReqUniquenessScope.
+const (
+	LocalClaimReqUniquenessScopeACROSSUSERSTORES LocalClaimReqUniquenessScope = "ACROSS_USERSTORES"
+	LocalClaimReqUniquenessScopeNONE             LocalClaimReqUniquenessScope = "NONE"
+	LocalClaimReqUniquenessScopeWITHINUSERSTORE  LocalClaimReqUniquenessScope = "WITHIN_USERSTORE"
 )
 
 // Defines values for LocalClaimResSharedProfileValueResolvingMethod.
 const (
-	FromFirstFoundInHierarchy LocalClaimResSharedProfileValueResolvingMethod = "FromFirstFoundInHierarchy"
-	FromOrigin                LocalClaimResSharedProfileValueResolvingMethod = "FromOrigin"
-	FromSharedProfile         LocalClaimResSharedProfileValueResolvingMethod = "FromSharedProfile"
+	LocalClaimResSharedProfileValueResolvingMethodFromFirstFoundInHierarchy LocalClaimResSharedProfileValueResolvingMethod = "FromFirstFoundInHierarchy"
+	LocalClaimResSharedProfileValueResolvingMethodFromOrigin                LocalClaimResSharedProfileValueResolvingMethod = "FromOrigin"
+	LocalClaimResSharedProfileValueResolvingMethodFromSharedProfile         LocalClaimResSharedProfileValueResolvingMethod = "FromSharedProfile"
 )
 
 // Defines values for LocalClaimResUniquenessScope.
 const (
-	ACROSSUSERSTORES LocalClaimResUniquenessScope = "ACROSS_USERSTORES"
-	NONE             LocalClaimResUniquenessScope = "NONE"
-	WITHINUSERSTORE  LocalClaimResUniquenessScope = "WITHIN_USERSTORE"
+	LocalClaimResUniquenessScopeACROSSUSERSTORES LocalClaimResUniquenessScope = "ACROSS_USERSTORES"
+	LocalClaimResUniquenessScopeNONE             LocalClaimResUniquenessScope = "NONE"
+	LocalClaimResUniquenessScopeWITHINUSERSTORE  LocalClaimResUniquenessScope = "WITHIN_USERSTORE"
+)
+
+// Defines values for FileTypeHeaderParam.
+const (
+	FileTypeHeaderParamApplicationjson  FileTypeHeaderParam = "application/json"
+	FileTypeHeaderParamApplicationxYaml FileTypeHeaderParam = "application/x-yaml"
+	FileTypeHeaderParamApplicationxml   FileTypeHeaderParam = "application/xml"
+	FileTypeHeaderParamApplicationyaml  FileTypeHeaderParam = "application/yaml"
+	FileTypeHeaderParamTextjson         FileTypeHeaderParam = "text/json"
+	FileTypeHeaderParamTextxml          FileTypeHeaderParam = "text/xml"
+	FileTypeHeaderParamTextyaml         FileTypeHeaderParam = "text/yaml"
+)
+
+// Defines values for ExportClaimDialectToFileParamsAccept.
+const (
+	ExportClaimDialectToFileParamsAcceptApplicationjson  ExportClaimDialectToFileParamsAccept = "application/json"
+	ExportClaimDialectToFileParamsAcceptApplicationxYaml ExportClaimDialectToFileParamsAccept = "application/x-yaml"
+	ExportClaimDialectToFileParamsAcceptApplicationxml   ExportClaimDialectToFileParamsAccept = "application/xml"
+	ExportClaimDialectToFileParamsAcceptApplicationyaml  ExportClaimDialectToFileParamsAccept = "application/yaml"
+	ExportClaimDialectToFileParamsAcceptTextjson         ExportClaimDialectToFileParamsAccept = "text/json"
+	ExportClaimDialectToFileParamsAcceptTextxml          ExportClaimDialectToFileParamsAccept = "text/xml"
+	ExportClaimDialectToFileParamsAcceptTextyaml         ExportClaimDialectToFileParamsAccept = "text/yaml"
 )
 
 // AttributeMapping Claim userstore attribute mapping.
@@ -43,6 +91,22 @@ type AttributeProfile struct {
 	SupportedByDefault *bool `json:"supportedByDefault,omitempty"`
 }
 
+// ClaimDialectReq Claim dialect request.
+type ClaimDialectReq struct {
+	// DialectURI URI of the claim dialect.
+	DialectURI string `json:"dialectURI"`
+}
+
+// ClaimDialectRes Claim dialect response.
+type ClaimDialectRes struct {
+	// DialectURI URI of the claim dialect.
+	DialectURI *string `json:"dialectURI,omitempty"`
+
+	// Id Dialect id.
+	Id   *string `json:"id,omitempty"`
+	Link *Link   `json:"link,omitempty"`
+}
+
 // ClaimRes Claim response.
 type ClaimRes = map[string]interface{}
 
@@ -53,6 +117,93 @@ type Error struct {
 	Message     string  `json:"message"`
 	TraceId     *string `json:"traceId,omitempty"`
 }
+
+// ExternalClaimReq External claim request.
+type ExternalClaimReq struct {
+	// ClaimURI Claim URI of the external claim.
+	ClaimURI string `json:"claimURI"`
+
+	// MappedLocalClaimURI The local claim URI to map with the external claim.
+	MappedLocalClaimURI string `json:"mappedLocalClaimURI"`
+}
+
+// ExternalClaimRes defines model for ExternalClaimRes.
+type ExternalClaimRes struct {
+	// ClaimDialectURI Dialect URI of the external claim.
+	ClaimDialectURI *string `json:"claimDialectURI,omitempty"`
+
+	// ClaimURI Claim URI of the external claim.
+	ClaimURI *string `json:"claimURI,omitempty"`
+
+	// Id External claim ID.
+	Id *string `json:"id,omitempty"`
+
+	// MappedLocalClaimURI The local claim URI to map with the external claim.
+	MappedLocalClaimURI *string `json:"mappedLocalClaimURI,omitempty"`
+
+	// Properties Define any additional properties if required.
+	Properties *[]Property `json:"properties,omitempty"`
+}
+
+// Link defines model for Link.
+type Link struct {
+	// Href Relative path to the target resource.
+	Href *string `json:"href,omitempty"`
+
+	// Rel Describes how the current context is related to the target resource.
+	Rel *string `json:"rel,omitempty"`
+}
+
+// LocalClaimReq Local claim request.
+type LocalClaimReq struct {
+	// AttributeMapping Userstore attribute mappings.
+	AttributeMapping []AttributeMapping `json:"attributeMapping"`
+
+	// ClaimURI A unique URI specific to the claim.
+	ClaimURI string `json:"claimURI"`
+
+	// Description Description of the claim.
+	Description *string `json:"description,omitempty"`
+
+	// DisplayName Name of the claim to be displayed in the UI.
+	DisplayName string `json:"displayName"`
+
+	// DisplayOrder The order in which the claim is displayed among other claims under the same dialect.
+	DisplayOrder *int `json:"displayOrder,omitempty"`
+
+	// MultiValued Specifies if the claim can hold multiple values or not.
+	MultiValued *bool `json:"multiValued,omitempty"`
+
+	// Profiles Attribute profiles.
+	Profiles *Profiles `json:"profiles,omitempty"`
+
+	// Properties Define any additional properties if required.
+	Properties *[]Property `json:"properties,omitempty"`
+
+	// ReadOnly Specifies if the claim is read-only.
+	ReadOnly *bool `json:"readOnly,omitempty"`
+
+	// RegEx Regular expression used to validate inputs.
+	RegEx *string `json:"regEx,omitempty"`
+
+	// Required Specifies if the claim is required for user registration.
+	Required *bool `json:"required,omitempty"`
+
+	// SharedProfileValueResolvingMethod Specifies claim value resolving method for shared user profile.
+	SharedProfileValueResolvingMethod *LocalClaimReqSharedProfileValueResolvingMethod `json:"sharedProfileValueResolvingMethod,omitempty"`
+
+	// SupportedByDefault Specifies if the claim will be prompted during user registration and displayed on the user profile.
+	SupportedByDefault *bool `json:"supportedByDefault,omitempty"`
+
+	// UniquenessScope Specifies the scope of uniqueness validation for the claim value.
+	UniquenessScope *LocalClaimReqUniquenessScope `json:"uniquenessScope,omitempty"`
+}
+
+// LocalClaimReqSharedProfileValueResolvingMethod Specifies claim value resolving method for shared user profile.
+type LocalClaimReqSharedProfileValueResolvingMethod string
+
+// LocalClaimReqUniquenessScope Specifies the scope of uniqueness validation for the claim value.
+type LocalClaimReqUniquenessScope string
 
 // LocalClaimRes defines model for LocalClaimRes.
 type LocalClaimRes struct {
@@ -120,14 +271,172 @@ type Property struct {
 	Value string `json:"value"`
 }
 
+// AttributesQueryParam defines model for attributesQueryParam.
+type AttributesQueryParam = string
+
+// ClaimIdPathParam defines model for claimIdPathParam.
+type ClaimIdPathParam = string
+
+// DialectIdPathParam defines model for dialectIdPathParam.
+type DialectIdPathParam = string
+
+// ExcludeHiddenClaimsQueryParam defines model for excludeHiddenClaimsQueryParam.
+type ExcludeHiddenClaimsQueryParam = bool
+
+// ExcludeIdentityClaimsQueryParam defines model for excludeIdentityClaimsQueryParam.
+type ExcludeIdentityClaimsQueryParam = bool
+
+// FileParam defines model for fileParam.
+type FileParam = openapi_types.File
+
+// FileTypeHeaderParam defines model for fileTypeHeaderParam.
+type FileTypeHeaderParam string
+
+// FilterQueryParam defines model for filterQueryParam.
+type FilterQueryParam = string
+
+// LimitQueryParam defines model for limitQueryParam.
+type LimitQueryParam = int32
+
+// OffsetQueryParam defines model for offsetQueryParam.
+type OffsetQueryParam = int32
+
+// PreserveClaimsParam defines model for preserveClaimsParam.
+type PreserveClaimsParam = bool
+
+// SortQueryParam defines model for sortQueryParam.
+type SortQueryParam = string
+
+// Conflict defines model for Conflict.
+type Conflict = Error
+
+// InvalidInput defines model for InvalidInput.
+type InvalidInput = Error
+
+// NotFound defines model for NotFound.
+type NotFound = Error
+
 // NotImplemented defines model for NotImplemented.
 type NotImplemented = Error
 
 // ServerError defines model for ServerError.
 type ServerError = Error
 
-// Unauthorized defines model for Unauthorized.
-type Unauthorized = Error
+// GetClaimDialectsParams defines parameters for GetClaimDialects.
+type GetClaimDialectsParams struct {
+	// Limit Maximum number of records to return.
+	// <br>**This option is not yet supported.**
+	Limit *LimitQueryParam `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of records to skip for pagination.
+	// <br>**This option is not yet supported.**
+	Offset *OffsetQueryParam `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Filter Condition to filter the retrieval of records.
+	// <br>**This option is not yet supported.**
+	Filter *FilterQueryParam `form:"filter,omitempty" json:"filter,omitempty"`
+
+	// Sort Define the order by which the retrieved records should be sorted.
+	// <br>**This option is not yet supported.**
+	Sort *SortQueryParam `form:"sort,omitempty" json:"sort,omitempty"`
+}
+
+// ImportClaimDialectFromFileMultipartBody defines parameters for ImportClaimDialectFromFile.
+type ImportClaimDialectFromFileMultipartBody struct {
+	File *openapi_types.File `json:"file,omitempty"`
+}
+
+// UpdateClaimDialectFromFileMultipartBody defines parameters for UpdateClaimDialectFromFile.
+type UpdateClaimDialectFromFileMultipartBody struct {
+	File *openapi_types.File `json:"file,omitempty"`
+}
+
+// UpdateClaimDialectFromFileParams defines parameters for UpdateClaimDialectFromFile.
+type UpdateClaimDialectFromFileParams struct {
+	// PreserveClaims Specify whether to merge and preserve the claims or completely replace the existing claims set.
+	PreserveClaims *PreserveClaimsParam `form:"preserveClaims,omitempty" json:"preserveClaims,omitempty"`
+}
+
+// GetLocalClaimsParams defines parameters for GetLocalClaims.
+type GetLocalClaimsParams struct {
+	// Attributes Define only the required attributes to be sent in the response object.
+	// <br>**This option is not yet supported.**
+	Attributes *AttributesQueryParam `form:"attributes,omitempty" json:"attributes,omitempty"`
+
+	// Limit Maximum number of records to return.
+	// <br>**This option is not yet supported.**
+	Limit *LimitQueryParam `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of records to skip for pagination.
+	// <br>**This option is not yet supported.**
+	Offset *OffsetQueryParam `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Filter Condition to filter the retrieval of records.
+	// <br>**This option is not yet supported.**
+	Filter *FilterQueryParam `form:"filter,omitempty" json:"filter,omitempty"`
+
+	// Sort Define the order by which the retrieved records should be sorted.
+	// <br>**This option is not yet supported.**
+	Sort *SortQueryParam `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// ExcludeIdentityClaims Exclude identity claims when listing local claims.
+	ExcludeIdentityClaims *ExcludeIdentityClaimsQueryParam `form:"exclude-identity-claims,omitempty" json:"exclude-identity-claims,omitempty"`
+
+	// ExcludeHiddenClaims Exclude hidden claims when listing local claims.
+	ExcludeHiddenClaims *ExcludeHiddenClaimsQueryParam `form:"exclude-hidden-claims,omitempty" json:"exclude-hidden-claims,omitempty"`
+}
+
+// GetExternalClaimsParams defines parameters for GetExternalClaims.
+type GetExternalClaimsParams struct {
+	// Limit Maximum number of records to return.
+	// <br>**This option is not yet supported.**
+	Limit *LimitQueryParam `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of records to skip for pagination.
+	// <br>**This option is not yet supported.**
+	Offset *OffsetQueryParam `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Filter Condition to filter the retrieval of records.
+	// <br>**This option is not yet supported.**
+	Filter *FilterQueryParam `form:"filter,omitempty" json:"filter,omitempty"`
+
+	// Sort Define the order by which the retrieved records should be sorted.
+	// <br>**This option is not yet supported.**
+	Sort *SortQueryParam `form:"sort,omitempty" json:"sort,omitempty"`
+}
+
+// ExportClaimDialectToFileParams defines parameters for ExportClaimDialectToFile.
+type ExportClaimDialectToFileParams struct {
+	// Accept Content type of the file.
+	Accept *ExportClaimDialectToFileParamsAccept `json:"Accept,omitempty"`
+}
+
+// ExportClaimDialectToFileParamsAccept defines parameters for ExportClaimDialectToFile.
+type ExportClaimDialectToFileParamsAccept string
+
+// AddClaimDialectJSONRequestBody defines body for AddClaimDialect for application/json ContentType.
+type AddClaimDialectJSONRequestBody = ClaimDialectReq
+
+// ImportClaimDialectFromFileMultipartRequestBody defines body for ImportClaimDialectFromFile for multipart/form-data ContentType.
+type ImportClaimDialectFromFileMultipartRequestBody ImportClaimDialectFromFileMultipartBody
+
+// UpdateClaimDialectFromFileMultipartRequestBody defines body for UpdateClaimDialectFromFile for multipart/form-data ContentType.
+type UpdateClaimDialectFromFileMultipartRequestBody UpdateClaimDialectFromFileMultipartBody
+
+// AddLocalClaimJSONRequestBody defines body for AddLocalClaim for application/json ContentType.
+type AddLocalClaimJSONRequestBody = LocalClaimReq
+
+// UpdateLocalClaimJSONRequestBody defines body for UpdateLocalClaim for application/json ContentType.
+type UpdateLocalClaimJSONRequestBody = LocalClaimReq
+
+// UpdateClaimDialectJSONRequestBody defines body for UpdateClaimDialect for application/json ContentType.
+type UpdateClaimDialectJSONRequestBody = ClaimDialectReq
+
+// AddExternalClaimJSONRequestBody defines body for AddExternalClaim for application/json ContentType.
+type AddExternalClaimJSONRequestBody = ExternalClaimReq
+
+// UpdateExternalClaimJSONRequestBody defines body for UpdateExternalClaim for application/json ContentType.
+type UpdateExternalClaimJSONRequestBody = ExternalClaimReq
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -202,12 +511,75 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetClaimDialects request
+	GetClaimDialects(ctx context.Context, params *GetClaimDialectsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddClaimDialectWithBody request with any body
+	AddClaimDialectWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddClaimDialect(ctx context.Context, body AddClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportClaimDialectFromFileWithBody request with any body
+	ImportClaimDialectFromFileWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateClaimDialectFromFileWithBody request with any body
+	UpdateClaimDialectFromFileWithBody(ctx context.Context, params *UpdateClaimDialectFromFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetLocalClaims request
-	GetLocalClaims(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetLocalClaims(ctx context.Context, params *GetLocalClaimsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddLocalClaimWithBody request with any body
+	AddLocalClaimWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddLocalClaim(ctx context.Context, body AddLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteLocalClaim request
+	DeleteLocalClaim(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetLocalClaim request
+	GetLocalClaim(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateLocalClaimWithBody request with any body
+	UpdateLocalClaimWithBody(ctx context.Context, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateLocalClaim(ctx context.Context, claimId ClaimIdPathParam, body UpdateLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteClaimDialect request
+	DeleteClaimDialect(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetClaimDialect request
+	GetClaimDialect(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateClaimDialectWithBody request with any body
+	UpdateClaimDialectWithBody(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateClaimDialect(ctx context.Context, dialectId DialectIdPathParam, body UpdateClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetExternalClaims request
+	GetExternalClaims(ctx context.Context, dialectId DialectIdPathParam, params *GetExternalClaimsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddExternalClaimWithBody request with any body
+	AddExternalClaimWithBody(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddExternalClaim(ctx context.Context, dialectId DialectIdPathParam, body AddExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteExternalClaim request
+	DeleteExternalClaim(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetExternalClaim request
+	GetExternalClaim(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateExternalClaimWithBody request with any body
+	UpdateExternalClaimWithBody(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateExternalClaim(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, body UpdateExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportClaimDialectToFile request
+	ExportClaimDialectToFile(ctx context.Context, dialectId DialectIdPathParam, params *ExportClaimDialectToFileParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) GetLocalClaims(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetLocalClaimsRequest(c.Server)
+func (c *Client) GetClaimDialects(ctx context.Context, params *GetClaimDialectsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetClaimDialectsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -218,8 +590,501 @@ func (c *Client) GetLocalClaims(ctx context.Context, reqEditors ...RequestEditor
 	return c.Client.Do(req)
 }
 
+func (c *Client) AddClaimDialectWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddClaimDialectRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddClaimDialect(ctx context.Context, body AddClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddClaimDialectRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ImportClaimDialectFromFileWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportClaimDialectFromFileRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateClaimDialectFromFileWithBody(ctx context.Context, params *UpdateClaimDialectFromFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateClaimDialectFromFileRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetLocalClaims(ctx context.Context, params *GetLocalClaimsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetLocalClaimsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddLocalClaimWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddLocalClaimRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddLocalClaim(ctx context.Context, body AddLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddLocalClaimRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteLocalClaim(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteLocalClaimRequest(c.Server, claimId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetLocalClaim(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetLocalClaimRequest(c.Server, claimId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateLocalClaimWithBody(ctx context.Context, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateLocalClaimRequestWithBody(c.Server, claimId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateLocalClaim(ctx context.Context, claimId ClaimIdPathParam, body UpdateLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateLocalClaimRequest(c.Server, claimId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteClaimDialect(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteClaimDialectRequest(c.Server, dialectId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetClaimDialect(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetClaimDialectRequest(c.Server, dialectId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateClaimDialectWithBody(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateClaimDialectRequestWithBody(c.Server, dialectId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateClaimDialect(ctx context.Context, dialectId DialectIdPathParam, body UpdateClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateClaimDialectRequest(c.Server, dialectId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetExternalClaims(ctx context.Context, dialectId DialectIdPathParam, params *GetExternalClaimsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetExternalClaimsRequest(c.Server, dialectId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddExternalClaimWithBody(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddExternalClaimRequestWithBody(c.Server, dialectId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddExternalClaim(ctx context.Context, dialectId DialectIdPathParam, body AddExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddExternalClaimRequest(c.Server, dialectId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteExternalClaim(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteExternalClaimRequest(c.Server, dialectId, claimId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetExternalClaim(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetExternalClaimRequest(c.Server, dialectId, claimId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateExternalClaimWithBody(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateExternalClaimRequestWithBody(c.Server, dialectId, claimId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateExternalClaim(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, body UpdateExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateExternalClaimRequest(c.Server, dialectId, claimId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExportClaimDialectToFile(ctx context.Context, dialectId DialectIdPathParam, params *ExportClaimDialectToFileParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportClaimDialectToFileRequest(c.Server, dialectId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewGetClaimDialectsRequest generates requests for GetClaimDialects
+func NewGetClaimDialectsRequest(server string, params *GetClaimDialectsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "filter", runtime.ParamLocationQuery, *params.Filter); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort", runtime.ParamLocationQuery, *params.Sort); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddClaimDialectRequest calls the generic AddClaimDialect builder with application/json body
+func NewAddClaimDialectRequest(server string, body AddClaimDialectJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddClaimDialectRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAddClaimDialectRequestWithBody generates requests for AddClaimDialect with any type of body
+func NewAddClaimDialectRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewImportClaimDialectFromFileRequestWithBody generates requests for ImportClaimDialectFromFile with any type of body
+func NewImportClaimDialectFromFileRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/import")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUpdateClaimDialectFromFileRequestWithBody generates requests for UpdateClaimDialectFromFile with any type of body
+func NewUpdateClaimDialectFromFileRequestWithBody(server string, params *UpdateClaimDialectFromFileParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/import")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.PreserveClaims != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "preserveClaims", runtime.ParamLocationQuery, *params.PreserveClaims); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetLocalClaimsRequest generates requests for GetLocalClaims
-func NewGetLocalClaimsRequest(server string) (*http.Request, error) {
+func NewGetLocalClaimsRequest(server string, params *GetLocalClaimsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -237,9 +1102,733 @@ func NewGetLocalClaimsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Attributes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "attributes", runtime.ParamLocationQuery, *params.Attributes); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "filter", runtime.ParamLocationQuery, *params.Filter); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort", runtime.ParamLocationQuery, *params.Sort); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ExcludeIdentityClaims != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "exclude-identity-claims", runtime.ParamLocationQuery, *params.ExcludeIdentityClaims); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ExcludeHiddenClaims != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "exclude-hidden-claims", runtime.ParamLocationQuery, *params.ExcludeHiddenClaims); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddLocalClaimRequest calls the generic AddLocalClaim builder with application/json body
+func NewAddLocalClaimRequest(server string, body AddLocalClaimJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddLocalClaimRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAddLocalClaimRequestWithBody generates requests for AddLocalClaim with any type of body
+func NewAddLocalClaimRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/local/claims")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteLocalClaimRequest generates requests for DeleteLocalClaim
+func NewDeleteLocalClaimRequest(server string, claimId ClaimIdPathParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "claim-id", runtime.ParamLocationPath, claimId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/local/claims/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetLocalClaimRequest generates requests for GetLocalClaim
+func NewGetLocalClaimRequest(server string, claimId ClaimIdPathParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "claim-id", runtime.ParamLocationPath, claimId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/local/claims/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateLocalClaimRequest calls the generic UpdateLocalClaim builder with application/json body
+func NewUpdateLocalClaimRequest(server string, claimId ClaimIdPathParam, body UpdateLocalClaimJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateLocalClaimRequestWithBody(server, claimId, "application/json", bodyReader)
+}
+
+// NewUpdateLocalClaimRequestWithBody generates requests for UpdateLocalClaim with any type of body
+func NewUpdateLocalClaimRequestWithBody(server string, claimId ClaimIdPathParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "claim-id", runtime.ParamLocationPath, claimId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/local/claims/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteClaimDialectRequest generates requests for DeleteClaimDialect
+func NewDeleteClaimDialectRequest(server string, dialectId DialectIdPathParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetClaimDialectRequest generates requests for GetClaimDialect
+func NewGetClaimDialectRequest(server string, dialectId DialectIdPathParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateClaimDialectRequest calls the generic UpdateClaimDialect builder with application/json body
+func NewUpdateClaimDialectRequest(server string, dialectId DialectIdPathParam, body UpdateClaimDialectJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateClaimDialectRequestWithBody(server, dialectId, "application/json", bodyReader)
+}
+
+// NewUpdateClaimDialectRequestWithBody generates requests for UpdateClaimDialect with any type of body
+func NewUpdateClaimDialectRequestWithBody(server string, dialectId DialectIdPathParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetExternalClaimsRequest generates requests for GetExternalClaims
+func NewGetExternalClaimsRequest(server string, dialectId DialectIdPathParam, params *GetExternalClaimsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s/claims", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "filter", runtime.ParamLocationQuery, *params.Filter); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort", runtime.ParamLocationQuery, *params.Sort); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddExternalClaimRequest calls the generic AddExternalClaim builder with application/json body
+func NewAddExternalClaimRequest(server string, dialectId DialectIdPathParam, body AddExternalClaimJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddExternalClaimRequestWithBody(server, dialectId, "application/json", bodyReader)
+}
+
+// NewAddExternalClaimRequestWithBody generates requests for AddExternalClaim with any type of body
+func NewAddExternalClaimRequestWithBody(server string, dialectId DialectIdPathParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s/claims", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteExternalClaimRequest generates requests for DeleteExternalClaim
+func NewDeleteExternalClaimRequest(server string, dialectId DialectIdPathParam, claimId ClaimIdPathParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "claim-id", runtime.ParamLocationPath, claimId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s/claims/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetExternalClaimRequest generates requests for GetExternalClaim
+func NewGetExternalClaimRequest(server string, dialectId DialectIdPathParam, claimId ClaimIdPathParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "claim-id", runtime.ParamLocationPath, claimId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s/claims/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateExternalClaimRequest calls the generic UpdateExternalClaim builder with application/json body
+func NewUpdateExternalClaimRequest(server string, dialectId DialectIdPathParam, claimId ClaimIdPathParam, body UpdateExternalClaimJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateExternalClaimRequestWithBody(server, dialectId, claimId, "application/json", bodyReader)
+}
+
+// NewUpdateExternalClaimRequestWithBody generates requests for UpdateExternalClaim with any type of body
+func NewUpdateExternalClaimRequestWithBody(server string, dialectId DialectIdPathParam, claimId ClaimIdPathParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "claim-id", runtime.ParamLocationPath, claimId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s/claims/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewExportClaimDialectToFileRequest generates requests for ExportClaimDialectToFile
+func NewExportClaimDialectToFileRequest(server string, dialectId DialectIdPathParam, params *ExportClaimDialectToFileParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "dialect-id", runtime.ParamLocationPath, dialectId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/claim-dialects/%s/export", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Accept != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Accept", runtime.ParamLocationHeader, *params.Accept)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Accept", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -288,15 +1877,171 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetClaimDialectsWithResponse request
+	GetClaimDialectsWithResponse(ctx context.Context, params *GetClaimDialectsParams, reqEditors ...RequestEditorFn) (*GetClaimDialectsResponse, error)
+
+	// AddClaimDialectWithBodyWithResponse request with any body
+	AddClaimDialectWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddClaimDialectResponse, error)
+
+	AddClaimDialectWithResponse(ctx context.Context, body AddClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*AddClaimDialectResponse, error)
+
+	// ImportClaimDialectFromFileWithBodyWithResponse request with any body
+	ImportClaimDialectFromFileWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportClaimDialectFromFileResponse, error)
+
+	// UpdateClaimDialectFromFileWithBodyWithResponse request with any body
+	UpdateClaimDialectFromFileWithBodyWithResponse(ctx context.Context, params *UpdateClaimDialectFromFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClaimDialectFromFileResponse, error)
+
 	// GetLocalClaimsWithResponse request
-	GetLocalClaimsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLocalClaimsResponse, error)
+	GetLocalClaimsWithResponse(ctx context.Context, params *GetLocalClaimsParams, reqEditors ...RequestEditorFn) (*GetLocalClaimsResponse, error)
+
+	// AddLocalClaimWithBodyWithResponse request with any body
+	AddLocalClaimWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddLocalClaimResponse, error)
+
+	AddLocalClaimWithResponse(ctx context.Context, body AddLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*AddLocalClaimResponse, error)
+
+	// DeleteLocalClaimWithResponse request
+	DeleteLocalClaimWithResponse(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*DeleteLocalClaimResponse, error)
+
+	// GetLocalClaimWithResponse request
+	GetLocalClaimWithResponse(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*GetLocalClaimResponse, error)
+
+	// UpdateLocalClaimWithBodyWithResponse request with any body
+	UpdateLocalClaimWithBodyWithResponse(ctx context.Context, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateLocalClaimResponse, error)
+
+	UpdateLocalClaimWithResponse(ctx context.Context, claimId ClaimIdPathParam, body UpdateLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateLocalClaimResponse, error)
+
+	// DeleteClaimDialectWithResponse request
+	DeleteClaimDialectWithResponse(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*DeleteClaimDialectResponse, error)
+
+	// GetClaimDialectWithResponse request
+	GetClaimDialectWithResponse(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*GetClaimDialectResponse, error)
+
+	// UpdateClaimDialectWithBodyWithResponse request with any body
+	UpdateClaimDialectWithBodyWithResponse(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClaimDialectResponse, error)
+
+	UpdateClaimDialectWithResponse(ctx context.Context, dialectId DialectIdPathParam, body UpdateClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateClaimDialectResponse, error)
+
+	// GetExternalClaimsWithResponse request
+	GetExternalClaimsWithResponse(ctx context.Context, dialectId DialectIdPathParam, params *GetExternalClaimsParams, reqEditors ...RequestEditorFn) (*GetExternalClaimsResponse, error)
+
+	// AddExternalClaimWithBodyWithResponse request with any body
+	AddExternalClaimWithBodyWithResponse(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddExternalClaimResponse, error)
+
+	AddExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, body AddExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*AddExternalClaimResponse, error)
+
+	// DeleteExternalClaimWithResponse request
+	DeleteExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*DeleteExternalClaimResponse, error)
+
+	// GetExternalClaimWithResponse request
+	GetExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*GetExternalClaimResponse, error)
+
+	// UpdateExternalClaimWithBodyWithResponse request with any body
+	UpdateExternalClaimWithBodyWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateExternalClaimResponse, error)
+
+	UpdateExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, body UpdateExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateExternalClaimResponse, error)
+
+	// ExportClaimDialectToFileWithResponse request
+	ExportClaimDialectToFileWithResponse(ctx context.Context, dialectId DialectIdPathParam, params *ExportClaimDialectToFileParams, reqEditors ...RequestEditorFn) (*ExportClaimDialectToFileResponse, error)
+}
+
+type GetClaimDialectsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ClaimDialectRes
+	JSON500      *ServerError
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetClaimDialectsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetClaimDialectsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AddClaimDialectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON409      *Conflict
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r AddClaimDialectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddClaimDialectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ImportClaimDialectFromFileResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r ImportClaimDialectFromFileResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ImportClaimDialectFromFileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateClaimDialectFromFileResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateClaimDialectFromFileResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateClaimDialectFromFileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetLocalClaimsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]LocalClaimRes
-	JSON401      *Unauthorized
 	JSON500      *ServerError
 	JSON501      *NotImplemented
 }
@@ -317,13 +2062,676 @@ func (r GetLocalClaimsResponse) StatusCode() int {
 	return 0
 }
 
+type AddLocalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON409      *Conflict
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r AddLocalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddLocalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteLocalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteLocalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteLocalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetLocalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *LocalClaimRes
+	JSON400      *InvalidInput
+	JSON404      *NotFound
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetLocalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetLocalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateLocalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON409      *Conflict
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateLocalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateLocalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteClaimDialectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteClaimDialectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteClaimDialectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetClaimDialectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ClaimDialectRes
+	JSON400      *InvalidInput
+	JSON404      *NotFound
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetClaimDialectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetClaimDialectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateClaimDialectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateClaimDialectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateClaimDialectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetExternalClaimsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ExternalClaimRes
+	JSON404      *NotFound
+	JSON500      *ServerError
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetExternalClaimsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetExternalClaimsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AddExternalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON404      *NotFound
+	JSON409      *Conflict
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r AddExternalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddExternalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteExternalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteExternalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteExternalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetExternalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ExternalClaimRes
+	JSON400      *InvalidInput
+	JSON404      *NotFound
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetExternalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetExternalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateExternalClaimResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *InvalidInput
+	JSON409      *Conflict
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateExternalClaimResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateExternalClaimResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ExportClaimDialectToFileResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *string
+	XML200       *string
+	YAML200      *string
+	JSON400      *InvalidInput
+	JSON404      *NotFound
+	JSON500      *ServerError
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportClaimDialectToFileResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportClaimDialectToFileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// GetClaimDialectsWithResponse request returning *GetClaimDialectsResponse
+func (c *ClientWithResponses) GetClaimDialectsWithResponse(ctx context.Context, params *GetClaimDialectsParams, reqEditors ...RequestEditorFn) (*GetClaimDialectsResponse, error) {
+	rsp, err := c.GetClaimDialects(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetClaimDialectsResponse(rsp)
+}
+
+// AddClaimDialectWithBodyWithResponse request with arbitrary body returning *AddClaimDialectResponse
+func (c *ClientWithResponses) AddClaimDialectWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddClaimDialectResponse, error) {
+	rsp, err := c.AddClaimDialectWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddClaimDialectResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddClaimDialectWithResponse(ctx context.Context, body AddClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*AddClaimDialectResponse, error) {
+	rsp, err := c.AddClaimDialect(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddClaimDialectResponse(rsp)
+}
+
+// ImportClaimDialectFromFileWithBodyWithResponse request with arbitrary body returning *ImportClaimDialectFromFileResponse
+func (c *ClientWithResponses) ImportClaimDialectFromFileWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportClaimDialectFromFileResponse, error) {
+	rsp, err := c.ImportClaimDialectFromFileWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportClaimDialectFromFileResponse(rsp)
+}
+
+// UpdateClaimDialectFromFileWithBodyWithResponse request with arbitrary body returning *UpdateClaimDialectFromFileResponse
+func (c *ClientWithResponses) UpdateClaimDialectFromFileWithBodyWithResponse(ctx context.Context, params *UpdateClaimDialectFromFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClaimDialectFromFileResponse, error) {
+	rsp, err := c.UpdateClaimDialectFromFileWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClaimDialectFromFileResponse(rsp)
+}
+
 // GetLocalClaimsWithResponse request returning *GetLocalClaimsResponse
-func (c *ClientWithResponses) GetLocalClaimsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLocalClaimsResponse, error) {
-	rsp, err := c.GetLocalClaims(ctx, reqEditors...)
+func (c *ClientWithResponses) GetLocalClaimsWithResponse(ctx context.Context, params *GetLocalClaimsParams, reqEditors ...RequestEditorFn) (*GetLocalClaimsResponse, error) {
+	rsp, err := c.GetLocalClaims(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseGetLocalClaimsResponse(rsp)
+}
+
+// AddLocalClaimWithBodyWithResponse request with arbitrary body returning *AddLocalClaimResponse
+func (c *ClientWithResponses) AddLocalClaimWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddLocalClaimResponse, error) {
+	rsp, err := c.AddLocalClaimWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddLocalClaimResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddLocalClaimWithResponse(ctx context.Context, body AddLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*AddLocalClaimResponse, error) {
+	rsp, err := c.AddLocalClaim(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddLocalClaimResponse(rsp)
+}
+
+// DeleteLocalClaimWithResponse request returning *DeleteLocalClaimResponse
+func (c *ClientWithResponses) DeleteLocalClaimWithResponse(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*DeleteLocalClaimResponse, error) {
+	rsp, err := c.DeleteLocalClaim(ctx, claimId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteLocalClaimResponse(rsp)
+}
+
+// GetLocalClaimWithResponse request returning *GetLocalClaimResponse
+func (c *ClientWithResponses) GetLocalClaimWithResponse(ctx context.Context, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*GetLocalClaimResponse, error) {
+	rsp, err := c.GetLocalClaim(ctx, claimId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetLocalClaimResponse(rsp)
+}
+
+// UpdateLocalClaimWithBodyWithResponse request with arbitrary body returning *UpdateLocalClaimResponse
+func (c *ClientWithResponses) UpdateLocalClaimWithBodyWithResponse(ctx context.Context, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateLocalClaimResponse, error) {
+	rsp, err := c.UpdateLocalClaimWithBody(ctx, claimId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateLocalClaimResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateLocalClaimWithResponse(ctx context.Context, claimId ClaimIdPathParam, body UpdateLocalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateLocalClaimResponse, error) {
+	rsp, err := c.UpdateLocalClaim(ctx, claimId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateLocalClaimResponse(rsp)
+}
+
+// DeleteClaimDialectWithResponse request returning *DeleteClaimDialectResponse
+func (c *ClientWithResponses) DeleteClaimDialectWithResponse(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*DeleteClaimDialectResponse, error) {
+	rsp, err := c.DeleteClaimDialect(ctx, dialectId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteClaimDialectResponse(rsp)
+}
+
+// GetClaimDialectWithResponse request returning *GetClaimDialectResponse
+func (c *ClientWithResponses) GetClaimDialectWithResponse(ctx context.Context, dialectId DialectIdPathParam, reqEditors ...RequestEditorFn) (*GetClaimDialectResponse, error) {
+	rsp, err := c.GetClaimDialect(ctx, dialectId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetClaimDialectResponse(rsp)
+}
+
+// UpdateClaimDialectWithBodyWithResponse request with arbitrary body returning *UpdateClaimDialectResponse
+func (c *ClientWithResponses) UpdateClaimDialectWithBodyWithResponse(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClaimDialectResponse, error) {
+	rsp, err := c.UpdateClaimDialectWithBody(ctx, dialectId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClaimDialectResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateClaimDialectWithResponse(ctx context.Context, dialectId DialectIdPathParam, body UpdateClaimDialectJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateClaimDialectResponse, error) {
+	rsp, err := c.UpdateClaimDialect(ctx, dialectId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClaimDialectResponse(rsp)
+}
+
+// GetExternalClaimsWithResponse request returning *GetExternalClaimsResponse
+func (c *ClientWithResponses) GetExternalClaimsWithResponse(ctx context.Context, dialectId DialectIdPathParam, params *GetExternalClaimsParams, reqEditors ...RequestEditorFn) (*GetExternalClaimsResponse, error) {
+	rsp, err := c.GetExternalClaims(ctx, dialectId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetExternalClaimsResponse(rsp)
+}
+
+// AddExternalClaimWithBodyWithResponse request with arbitrary body returning *AddExternalClaimResponse
+func (c *ClientWithResponses) AddExternalClaimWithBodyWithResponse(ctx context.Context, dialectId DialectIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddExternalClaimResponse, error) {
+	rsp, err := c.AddExternalClaimWithBody(ctx, dialectId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddExternalClaimResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, body AddExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*AddExternalClaimResponse, error) {
+	rsp, err := c.AddExternalClaim(ctx, dialectId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddExternalClaimResponse(rsp)
+}
+
+// DeleteExternalClaimWithResponse request returning *DeleteExternalClaimResponse
+func (c *ClientWithResponses) DeleteExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*DeleteExternalClaimResponse, error) {
+	rsp, err := c.DeleteExternalClaim(ctx, dialectId, claimId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteExternalClaimResponse(rsp)
+}
+
+// GetExternalClaimWithResponse request returning *GetExternalClaimResponse
+func (c *ClientWithResponses) GetExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, reqEditors ...RequestEditorFn) (*GetExternalClaimResponse, error) {
+	rsp, err := c.GetExternalClaim(ctx, dialectId, claimId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetExternalClaimResponse(rsp)
+}
+
+// UpdateExternalClaimWithBodyWithResponse request with arbitrary body returning *UpdateExternalClaimResponse
+func (c *ClientWithResponses) UpdateExternalClaimWithBodyWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateExternalClaimResponse, error) {
+	rsp, err := c.UpdateExternalClaimWithBody(ctx, dialectId, claimId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateExternalClaimResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateExternalClaimWithResponse(ctx context.Context, dialectId DialectIdPathParam, claimId ClaimIdPathParam, body UpdateExternalClaimJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateExternalClaimResponse, error) {
+	rsp, err := c.UpdateExternalClaim(ctx, dialectId, claimId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateExternalClaimResponse(rsp)
+}
+
+// ExportClaimDialectToFileWithResponse request returning *ExportClaimDialectToFileResponse
+func (c *ClientWithResponses) ExportClaimDialectToFileWithResponse(ctx context.Context, dialectId DialectIdPathParam, params *ExportClaimDialectToFileParams, reqEditors ...RequestEditorFn) (*ExportClaimDialectToFileResponse, error) {
+	rsp, err := c.ExportClaimDialectToFile(ctx, dialectId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportClaimDialectToFileResponse(rsp)
+}
+
+// ParseGetClaimDialectsResponse parses an HTTP response from a GetClaimDialectsWithResponse call
+func ParseGetClaimDialectsResponse(rsp *http.Response) (*GetClaimDialectsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetClaimDialectsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ClaimDialectRes
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddClaimDialectResponse parses an HTTP response from a AddClaimDialectWithResponse call
+func ParseAddClaimDialectResponse(rsp *http.Response) (*AddClaimDialectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddClaimDialectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseImportClaimDialectFromFileResponse parses an HTTP response from a ImportClaimDialectFromFileWithResponse call
+func ParseImportClaimDialectFromFileResponse(rsp *http.Response) (*ImportClaimDialectFromFileResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ImportClaimDialectFromFileResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateClaimDialectFromFileResponse parses an HTTP response from a UpdateClaimDialectFromFileWithResponse call
+func ParseUpdateClaimDialectFromFileResponse(rsp *http.Response) (*UpdateClaimDialectFromFileResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateClaimDialectFromFileResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetLocalClaimsResponse parses an HTTP response from a GetLocalClaimsWithResponse call
@@ -347,12 +2755,325 @@ func ParseGetLocalClaimsResponse(rsp *http.Response) (*GetLocalClaimsResponse, e
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest Unauthorized
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON401 = &dest
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddLocalClaimResponse parses an HTTP response from a AddLocalClaimWithResponse call
+func ParseAddLocalClaimResponse(rsp *http.Response) (*AddLocalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddLocalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteLocalClaimResponse parses an HTTP response from a DeleteLocalClaimWithResponse call
+func ParseDeleteLocalClaimResponse(rsp *http.Response) (*DeleteLocalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteLocalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetLocalClaimResponse parses an HTTP response from a GetLocalClaimWithResponse call
+func ParseGetLocalClaimResponse(rsp *http.Response) (*GetLocalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetLocalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LocalClaimRes
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateLocalClaimResponse parses an HTTP response from a UpdateLocalClaimWithResponse call
+func ParseUpdateLocalClaimResponse(rsp *http.Response) (*UpdateLocalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateLocalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteClaimDialectResponse parses an HTTP response from a DeleteClaimDialectWithResponse call
+func ParseDeleteClaimDialectResponse(rsp *http.Response) (*DeleteClaimDialectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteClaimDialectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetClaimDialectResponse parses an HTTP response from a GetClaimDialectWithResponse call
+func ParseGetClaimDialectResponse(rsp *http.Response) (*GetClaimDialectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetClaimDialectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ClaimDialectRes
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateClaimDialectResponse parses an HTTP response from a UpdateClaimDialectWithResponse call
+func ParseUpdateClaimDialectResponse(rsp *http.Response) (*UpdateClaimDialectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateClaimDialectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetExternalClaimsResponse parses an HTTP response from a GetExternalClaimsWithResponse call
+func ParseGetExternalClaimsResponse(rsp *http.Response) (*GetExternalClaimsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetExternalClaimsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ExternalClaimRes
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ServerError
@@ -367,6 +3088,234 @@ func ParseGetLocalClaimsResponse(rsp *http.Response) (*GetLocalClaimsResponse, e
 			return nil, err
 		}
 		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddExternalClaimResponse parses an HTTP response from a AddExternalClaimWithResponse call
+func ParseAddExternalClaimResponse(rsp *http.Response) (*AddExternalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddExternalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteExternalClaimResponse parses an HTTP response from a DeleteExternalClaimWithResponse call
+func ParseDeleteExternalClaimResponse(rsp *http.Response) (*DeleteExternalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteExternalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetExternalClaimResponse parses an HTTP response from a GetExternalClaimWithResponse call
+func ParseGetExternalClaimResponse(rsp *http.Response) (*GetExternalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetExternalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ExternalClaimRes
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateExternalClaimResponse parses an HTTP response from a UpdateExternalClaimWithResponse call
+func ParseUpdateExternalClaimResponse(rsp *http.Response) (*UpdateExternalClaimResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateExternalClaimResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportClaimDialectToFileResponse parses an HTTP response from a ExportClaimDialectToFileWithResponse call
+func ParseExportClaimDialectToFileResponse(rsp *http.Response) (*ExportClaimDialectToFileResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportClaimDialectToFileResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest InvalidInput
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ServerError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "xml") && rsp.StatusCode == 200:
+		var dest string
+		if err := xml.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.XML200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "yaml") && rsp.StatusCode == 200:
+		var dest string
+		if err := yaml.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.YAML200 = &dest
 
 	}
 

@@ -711,8 +711,8 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 	}
 
 	result := &ApplicationBasicInfoResponseModel{
-		Id:               appID,
-		Name:             appDetails.Name,
+		Id:   appID,
+		Name: appDetails.Name,
 	}
 
 	if appDetails.ClientId != nil {
@@ -922,8 +922,11 @@ func (c *ApplicationClient) buildUserClaimList(ctx context.Context) ([]map[strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to create claim client: %w", err)
 	}
-
-	claims, err := claimClient.ListLocalClaims(ctx)
+	excludeHiddenClaims := true
+	listLocalClaimsParams := claim.LocalClaimListParamsModel{
+		ExcludeHiddenClaims: &excludeHiddenClaims,
+	}
+	claims, err := claimClient.ListLocalClaims(ctx, &listLocalClaimsParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list local claims: %w", err)
 	}

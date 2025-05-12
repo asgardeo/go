@@ -18,8 +18,8 @@
 
 package claim
 
-import (
-	"github.com/asgardeo/go/pkg/claim/internal"
-)
-
-type LocalClaimListResponseModel = internal.LocalClaimRes
+var ClaimDialectIDs = struct {
+	OIDC string
+}{
+	OIDC: "aHR0cDovL3dzbzIub3JnL29pZGMvY2xhaW0",
+}
