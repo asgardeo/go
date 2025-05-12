@@ -23,6 +23,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/asgardeo/go/examples/common"
 	"github.com/asgardeo/go/pkg/config"
 	"github.com/asgardeo/go/pkg/sdk"
 )
@@ -50,8 +51,6 @@ func main() {
 		log.Printf("Error listing OIDC Scopes: %v", err)
 	} else {
 		log.Printf("Found %d OIDC Scopes.\n", len(*oidcScopes))
-		for _, scope := range *oidcScopes {
-			log.Printf("OIDC Scope: %s\n", scope.Name)
-		}
+		log.Printf("OIDC Scopes: %v\n", common.ToJSONString(oidcScopes))
 	}
 }

@@ -20,10 +20,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"time"
 
+	"github.com/asgardeo/go/examples/common"
 	"github.com/asgardeo/go/pkg/application"
 	"github.com/asgardeo/go/pkg/config"
 	"github.com/asgardeo/go/pkg/sdk"
@@ -67,7 +67,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error creating application: %v", err)
 	} else {
-		log.Printf("Created SPA:\n%s\n", toJSONString(spa))
+		log.Printf("Created SPA:\n%s\n", common.ToJSONString(spa))
 	}
 
 	// Create a mobile app with name and redirect URL
@@ -80,7 +80,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error creating application: %v", err)
 	} else {
-		log.Printf("Created Mobile App with %s \n", toJSONString(mobileApp))
+		log.Printf("Created Mobile App with %s \n", common.ToJSONString(mobileApp))
 	}
 
 	// Create a M2M app with name
@@ -92,7 +92,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error creating application: %v", err)
 	} else {
-		log.Printf("Created M2M App with %s \n", toJSONString(m2mApp))
+		log.Printf("Created M2M App with %s \n", common.ToJSONString(m2mApp))
 	}
 
 	// Create a SSR webapp app with name and redirect URL
@@ -105,7 +105,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error creating application: %v", err)
 	} else {
-		log.Printf("Created Web App with SSR with %s \n", toJSONString(ssrWebApp))
+		log.Printf("Created Web App with SSR with %s \n", common.ToJSONString(ssrWebApp))
 	}
 
 	// Get application by name
@@ -184,7 +184,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error getting authorized APIs: %v", err)
 	} else {
-		log.Printf("Authorized APIs: %s\n", toJSONString(authorizedAPIs))
+		log.Printf("Authorized APIs: %s\n", common.ToJSONString(authorizedAPIs))
 	}
 
 	// Generate a login flow.
@@ -272,13 +272,4 @@ func main() {
 	} else {
 		log.Printf("Login flow updated successfully.")
 	}
-}
-
-func toJSONString(app interface{}) string {
-	jsonData, err := json.MarshalIndent(app, "", "  ")
-	if err != nil {
-		log.Printf("Error marshaling app object: %v", err)
-		return ""
-	}
-	return string(jsonData)
 }
