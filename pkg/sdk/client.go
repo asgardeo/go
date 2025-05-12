@@ -25,6 +25,7 @@ import (
 	"github.com/asgardeo/go/pkg/claim"
 	"github.com/asgardeo/go/pkg/config"
 	"github.com/asgardeo/go/pkg/identity_provider"
+	"github.com/asgardeo/go/pkg/oidc_scope"
 	"github.com/asgardeo/go/pkg/user"
 )
 
@@ -37,6 +38,7 @@ type Client struct {
 	Authenticator    *authenticator.AuthenticatorClient
 	Claim            *claim.ClaimClient
 	User             *user.UserClient
+	OIDCScopeClient  *oidc_scope.OIDCScopeClient
 }
 
 // NewClient creates a new SDK client with the given configuration
@@ -72,6 +74,11 @@ func New(cfg *config.ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
+	oidcScopeClient, err := oidc_scope.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		Config:           cfg,
 		Application:      appClient,
@@ -80,5 +87,6 @@ func New(cfg *config.ClientConfig) (*Client, error) {
 		Authenticator:    authenticatorClient,
 		Claim:            claimClient,
 		User:             userClient,
+		OIDCScopeClient:  oidcScopeClient,
 	}, nil
 }
