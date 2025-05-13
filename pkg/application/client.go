@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/asgardeo/go/pkg/application/internal"
@@ -30,6 +31,7 @@ import (
 	"github.com/asgardeo/go/pkg/common"
 	"github.com/asgardeo/go/pkg/config"
 	"github.com/asgardeo/go/pkg/identity_provider"
+	"github.com/asgardeo/go/pkg/oidc_scope"
 )
 
 const (
@@ -775,7 +777,6 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 		return nil, fmt.Errorf("failed to get authorized APIs: %w", err)
 	}
 
-	authorizedScopes := ""
 	scopeSet := make(map[string]struct{})
 	if authorizedAPIs != nil {
 		for _, api := range *authorizedAPIs {
@@ -831,11 +832,12 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 			}
 		}
 
-		// todo: add open id connect scopes based on claim configuration
-		authorizedScopes = " openid profile email"
-		if len(scopes) > 0 {
-			result.AuthorizedScopes = authorizedScopes + strings.Join(scopes, " ")
+		authorizedOIDCScopeList, err := c.getAuthorizedOIDCScopes(ctx, appDetails.ClaimConfiguration)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get authorized OIDC scopes: %w", err)
 		}
+		authorizedScopes := append(authorizedOIDCScopeList, scopes...)
+		result.AuthorizedScopes = strings.Join(authorizedScopes, " ")
 	}
 
 	return result, nil
@@ -965,4 +967,73 @@ func (c *ApplicationClient) buildUserClaimList(ctx context.Context) ([]map[strin
 	}
 
 	return userClaims, nil
+}
+
+func (c *ApplicationClient) getAuthorizedOIDCScopes(ctx context.Context, claimConfig *internal.ClaimConfiguration) ([]string, error) {
+	if claimConfig == nil || *claimConfig.RequestedClaims == nil {
+		// If no requested claims are found, return only the openid scope
+		return []string{"openid"}, nil
+	}
+	requestedClaims := *claimConfig.RequestedClaims
+
+	oidcScopeClient, err := oidc_scope.New(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OIDC scope client: %w", err)
+	}
+	oidcScopeListResponse, err := oidcScopeClient.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OIDC scopes: %w", err)
+	}
+	if oidcScopeListResponse == nil || *oidcScopeListResponse == nil {
+		// If no OIDC scopes are found, return only the openid scope
+		return []string{"openid"}, nil
+	}
+	oidcScopeList := *oidcScopeListResponse
+
+	claimClient, err := claim.New(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create claim client: %w", err)
+	}
+	oidcClaimListResponse, err := claimClient.ListOIDCClaims(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OIDC claims: %w", err)
+	}
+	if oidcClaimListResponse == nil || *oidcClaimListResponse == nil {
+		// If no OIDC claims are found, return only the openid scope
+		return []string{"openid"}, nil
+	}
+	oidcClaimList := *oidcClaimListResponse
+
+	authorizedOIDCScopes := make(map[string]bool)
+	localToOIDCClaimMap := make(map[string]string)
+	for _, oidcClaim := range oidcClaimList {
+		if oidcClaim.MappedLocalClaimURI != nil && oidcClaim.ClaimURI != nil {
+			localToOIDCClaimMap[*oidcClaim.MappedLocalClaimURI] = *oidcClaim.ClaimURI
+		}
+	}
+
+	for _, requestedClaim := range requestedClaims {
+		if oidcClaimURI, ok := localToOIDCClaimMap[requestedClaim.Claim.Uri]; ok {
+			for _, oidcScope := range oidcScopeList {
+				for _, claimInScope := range oidcScope.Claims {
+					if claimInScope == oidcClaimURI && oidcScope.Name != "openid" {
+						authorizedOIDCScopes[oidcScope.Name] = true
+						break
+					}
+				}
+			}
+		}
+	}
+
+	result := make([]string, 0, len(authorizedOIDCScopes)+1)
+	// Add "openid" scope to the result as the first element
+	result = append(result, "openid")
+	for scope := range authorizedOIDCScopes {
+		result = append(result, scope)
+	}
+	if len(result) > 1 {
+		sort.Strings(result[1:])
+	}
+
+	return result, nil
 }
