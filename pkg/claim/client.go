@@ -56,14 +56,40 @@ func New(cfg *config.ClientConfig) (*ClaimClient, error) {
 	}, nil
 }
 
-func (c *ClaimClient) ListLocalClaims(ctx context.Context) (*[]LocalClaimListResponseModel, error) {
-	resp, err := c.apiClient.GetLocalClaimsWithResponse(ctx)
+func (c *ClaimClient) ListLocalClaims(ctx context.Context, params *LocalClaimListParamsModel) (*[]LocalClaimResponseModel, error) {
+	resp, err := c.apiClient.GetLocalClaimsWithResponse(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get claims: %w", err)
 	}
 
 	if resp.JSON200 == nil {
 		return nil, fmt.Errorf("failed to get claims: %s", resp.Status())
+	}
+
+	return resp.JSON200, nil
+}
+
+func (c *ClaimClient) ListExternalClaims(ctx context.Context, dialectId string, params *ExternalClaimListParamsModel) (*[]ExternalClaimResponseModel, error) {
+	resp, err := c.apiClient.GetExternalClaimsWithResponse(ctx, dialectId, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get external claims: %w", err)
+	}
+
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("failed to get external claims: %s", resp.Status())
+	}
+
+	return resp.JSON200, nil
+}
+
+func (c *ClaimClient) ListOIDCClaims(ctx context.Context, params *ExternalClaimListParamsModel) (*[]ExternalClaimResponseModel, error) {
+	resp, err := c.apiClient.GetExternalClaimsWithResponse(ctx, ClaimDialectIDs.OIDC, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OIDC claims: %w", err)
+	}
+
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("failed to get OIDC claims: %s", resp.Status())
 	}
 
 	return resp.JSON200, nil

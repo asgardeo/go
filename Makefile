@@ -18,6 +18,7 @@ generate:
 	@mkdir -p pkg/identity_provider/internal
 	@mkdir -p pkg/authenticator/internal
 	@mkdir -p pkg/claim/internal
+	@mkdir -p pkg/oidc_scope/internal
 	@oapi-codegen \
 		-package internal \
 		-generate types,client \
@@ -43,6 +44,11 @@ generate:
 		-generate types,client \
 		-o pkg/claim/internal/client_gen.go \
 		api-specs/claim-management.yaml
+	@oapi-codegen \
+		-package internal \
+		-generate types,client \
+		-o pkg/oidc_scope/internal/client_gen.go \
+		api-specs/oidc-scope-management.yaml
 	@echo "SDK generation complete."
 
 # Clean generated code
@@ -53,4 +59,5 @@ clean:
 	@rm -f pkg/identity_provider/internal/client_gen.go
 	@rm -f pkg/authenticator/internal/client_gen.go
 	@rm -f pkg/claim/internal/client_gen.go
+	@rm -f pkg/oidc_scope/internal/client_gen.go
 	@echo "Cleaning complete."

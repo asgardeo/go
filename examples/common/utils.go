@@ -16,10 +16,20 @@
  * under the License.
  */
 
-package claim
+package common
 
 import (
-	"github.com/asgardeo/go/pkg/claim/internal"
+	"encoding/json"
+	"log"
 )
 
-type LocalClaimListResponseModel = internal.LocalClaimRes
+// ToJSONString returns the JSON string representation of any given object.
+// Returns an empty string and logs the error if marshaling fails.
+func ToJSONString(v interface{}) string {
+	jsonData, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		log.Printf("Error marshaling object to JSON: %v", err)
+		return ""
+	}
+	return string(jsonData)
+}

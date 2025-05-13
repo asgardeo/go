@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/asgardeo/go/pkg/application/internal"
@@ -30,6 +31,7 @@ import (
 	"github.com/asgardeo/go/pkg/common"
 	"github.com/asgardeo/go/pkg/config"
 	"github.com/asgardeo/go/pkg/identity_provider"
+	"github.com/asgardeo/go/pkg/oidc_scope"
 )
 
 const (
@@ -67,6 +69,7 @@ func New(cfg *config.ClientConfig) (*ApplicationClient, error) {
 	}, nil
 }
 
+// List retrieves a list of applications with pagination support
 func (c *ApplicationClient) List(ctx context.Context, limit, offset int) (*ApplicationListResponseModel, error) {
 	if limit <= 0 {
 		limit = defaultLimit
@@ -263,7 +266,7 @@ func (c *ApplicationClient) GetAuthorizedAPIs(ctx context.Context, appID string)
 
 // UpdateBasicInfo updates basic information of an existing application
 func (c *ApplicationClient) UpdateBasicInfo(ctx context.Context, appId string, updateModel ApplicationBasicInfoUpdateModel) error {
-	patchData := convertToApplicationPatchModel(updateModel)
+	patchData := convertBasicInfoUpdateModelToApplicationPatchModel(updateModel)
 	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, patchData)
 	if err != nil {
 		return fmt.Errorf("failed to update application: %w", err)
@@ -361,6 +364,87 @@ func (c *ApplicationClient) UpdateOAuthConfig(ctx context.Context, applicationId
 	}
 
 	return nil
+}
+
+// UpdateClaimConfig updates the claim configuration of an existing application
+func (c *ApplicationClient) UpdateClaimConfig(ctx context.Context, appId string, claimConfigUpdateModel ApplicationClaimConfigurationUpdateModel) error {
+	patchData := convertClaimConfigUpdateModelToApplicationPatchModel(claimConfigUpdateModel)
+	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, patchData)
+	if err != nil {
+		return fmt.Errorf("failed to update claim configuration: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("failed to update claim configuration: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
+	return nil
+}
+
+// UpdateLoginFlow updates the login flow of an existing application.
+func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, loginFlowUpdateRequest LoginFlowUpdateModel) error {
+	authenticationSequence := internal.ApplicationPatchModel{
+		AuthenticationSequence: &loginFlowUpdateRequest,
+	}
+	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, authenticationSequence)
+	if err != nil {
+		return fmt.Errorf("failed to update login flow: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("failed to update login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return nil
+}
+
+// GenerateLoginFlow initiates the login flow generation process for an application.
+func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponseModel, error) {
+
+	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build available authenticators: %w", err)
+	}
+
+	userClaims, err := c.buildUserClaimList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build user claims: %w", err)
+	}
+	loginFlowGenerateRequest := internal.LoginFlowGenerateRequest{
+		AvailableAuthenticators: &availableAuthenticators,
+		UserClaims:              &userClaims,
+		UserQuery:               &prompt,
+	}
+	resp, err := c.apiClient.GenerateLoginFlowWithResponse(ctx, loginFlowGenerateRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate login flow: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+// GetLoginFlowGenerationStatus retrieves the status of the login flow generation process.
+func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponseModel, error) {
+	resp, err := c.apiClient.GetLoginFlowGenerationStatusWithResponse(ctx, flowId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get login flow generation status: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to get login flow generation status: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	return resp.JSON200, nil
+}
+
+// GetLoginFlowGenerationResult retrieves the result of the login flow generation process.
+func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponseModel, error) {
+	resp, err := c.apiClient.GetLoginFlowGenerationResultWithResponse(ctx, flowId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get login flow generation result: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
+	}
+	loginFlowResultResponse := convertToLoginFlowResultResponseModel(*resp.JSON200)
+	return &loginFlowResultResponse, nil
 }
 
 func (c *ApplicationClient) buildSPARequest(name, redirectURL string) (internal.ApplicationModel, error) {
@@ -693,7 +777,6 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 		return nil, fmt.Errorf("failed to get authorized APIs: %w", err)
 	}
 
-	authorizedScopes := ""
 	scopeSet := make(map[string]struct{})
 	if authorizedAPIs != nil {
 		for _, api := range *authorizedAPIs {
@@ -711,8 +794,8 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 	}
 
 	result := &ApplicationBasicInfoResponseModel{
-		Id:               appID,
-		Name:             appDetails.Name,
+		Id:   appID,
+		Name: appDetails.Name,
 	}
 
 	if appDetails.ClientId != nil {
@@ -749,11 +832,12 @@ func (c *ApplicationClient) getApplicationDetails(ctx context.Context, appID str
 			}
 		}
 
-		// todo: add open id connect scopes based on claim configuration
-		authorizedScopes = " openid profile email"
-		if len(scopes) > 0 {
-			result.AuthorizedScopes = authorizedScopes + strings.Join(scopes, " ")
+		authorizedOIDCScopeList, err := c.getAuthorizedOIDCScopes(ctx, appDetails.ClaimConfiguration)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get authorized OIDC scopes: %w", err)
 		}
+		authorizedScopes := append(authorizedOIDCScopeList, scopes...)
+		result.AuthorizedScopes = strings.Join(authorizedScopes, " ")
 	}
 
 	return result, nil
@@ -773,69 +857,6 @@ func determineAppType(appDetails *internal.ApplicationResponseModel) (AppType, e
 		}
 	}
 	return "", fmt.Errorf("unknown application type")
-}
-
-func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponseModel, error) {
-
-	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build available authenticators: %w", err)
-	}
-
-	userClaims, err := c.buildUserClaimList(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build user claims: %w", err)
-	}
-	loginFlowGenerateRequest := internal.LoginFlowGenerateRequest{
-		AvailableAuthenticators: &availableAuthenticators,
-		UserClaims:              &userClaims,
-		UserQuery:               &prompt,
-	}
-	resp, err := c.apiClient.GenerateLoginFlowWithResponse(ctx, loginFlowGenerateRequest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate login flow: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	return resp.JSON200, nil
-}
-
-func (c *ApplicationClient) GetLoginFlowGenerationStatus(ctx context.Context, flowId string) (*LoginFlowStatusResponseModel, error) {
-	resp, err := c.apiClient.GetLoginFlowGenerationStatusWithResponse(ctx, flowId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get login flow generation status: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get login flow generation status: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	return resp.JSON200, nil
-}
-
-func (c *ApplicationClient) GetLoginFlowGenerationResult(ctx context.Context, flowId string) (*LoginFlowResultResponseModel, error) {
-	resp, err := c.apiClient.GetLoginFlowGenerationResultWithResponse(ctx, flowId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get login flow generation result: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get login flow generation result: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	loginFlowResultResponse := convertToLoginFlowResultResponseModel(*resp.JSON200)
-	return &loginFlowResultResponse, nil
-}
-
-func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, loginFlowUpdateRequest LoginFlowUpdateModel) error {
-	authenticationSequence := internal.ApplicationPatchModel{
-		AuthenticationSequence: &loginFlowUpdateRequest,
-	}
-	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, authenticationSequence)
-	if err != nil {
-		return fmt.Errorf("failed to update login flow: %w", err)
-	}
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("failed to update login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
-	}
-	return nil
 }
 
 func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (map[string]interface{}, error) {
@@ -922,8 +943,11 @@ func (c *ApplicationClient) buildUserClaimList(ctx context.Context) ([]map[strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to create claim client: %w", err)
 	}
-
-	claims, err := claimClient.ListLocalClaims(ctx)
+	excludeHiddenClaims := true
+	listLocalClaimsParams := claim.LocalClaimListParamsModel{
+		ExcludeHiddenClaims: &excludeHiddenClaims,
+	}
+	claims, err := claimClient.ListLocalClaims(ctx, &listLocalClaimsParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list local claims: %w", err)
 	}
@@ -943,4 +967,73 @@ func (c *ApplicationClient) buildUserClaimList(ctx context.Context) ([]map[strin
 	}
 
 	return userClaims, nil
+}
+
+func (c *ApplicationClient) getAuthorizedOIDCScopes(ctx context.Context, claimConfig *internal.ClaimConfiguration) ([]string, error) {
+	if claimConfig == nil || *claimConfig.RequestedClaims == nil {
+		// If no requested claims are found, return only the openid scope
+		return []string{"openid"}, nil
+	}
+	requestedClaims := *claimConfig.RequestedClaims
+
+	oidcScopeClient, err := oidc_scope.New(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OIDC scope client: %w", err)
+	}
+	oidcScopeListResponse, err := oidcScopeClient.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OIDC scopes: %w", err)
+	}
+	if oidcScopeListResponse == nil || *oidcScopeListResponse == nil {
+		// If no OIDC scopes are found, return only the openid scope
+		return []string{"openid"}, nil
+	}
+	oidcScopeList := *oidcScopeListResponse
+
+	claimClient, err := claim.New(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create claim client: %w", err)
+	}
+	oidcClaimListResponse, err := claimClient.ListOIDCClaims(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OIDC claims: %w", err)
+	}
+	if oidcClaimListResponse == nil || *oidcClaimListResponse == nil {
+		// If no OIDC claims are found, return only the openid scope
+		return []string{"openid"}, nil
+	}
+	oidcClaimList := *oidcClaimListResponse
+
+	authorizedOIDCScopes := make(map[string]bool)
+	localToOIDCClaimMap := make(map[string]string)
+	for _, oidcClaim := range oidcClaimList {
+		if oidcClaim.MappedLocalClaimURI != nil && oidcClaim.ClaimURI != nil {
+			localToOIDCClaimMap[*oidcClaim.MappedLocalClaimURI] = *oidcClaim.ClaimURI
+		}
+	}
+
+	for _, requestedClaim := range requestedClaims {
+		if oidcClaimURI, ok := localToOIDCClaimMap[requestedClaim.Claim.Uri]; ok {
+			for _, oidcScope := range oidcScopeList {
+				for _, claimInScope := range oidcScope.Claims {
+					if claimInScope == oidcClaimURI && oidcScope.Name != "openid" {
+						authorizedOIDCScopes[oidcScope.Name] = true
+						break
+					}
+				}
+			}
+		}
+	}
+
+	result := make([]string, 0, len(authorizedOIDCScopes)+1)
+	// Add "openid" scope to the result as the first element
+	result = append(result, "openid")
+	for scope := range authorizedOIDCScopes {
+		result = append(result, scope)
+	}
+	if len(result) > 1 {
+		sort.Strings(result[1:])
+	}
+
+	return result, nil
 }
