@@ -72,6 +72,21 @@ type ApplicationOAuthConfigUpdateModel struct {
 	RefreshTokenExpiryInSeconds *int64 `json:"refreshTokenExpiryInSeconds,omitempty"`
 }
 
+type ApplicationClaimConfigurationUpdateModel struct {
+	RequestedClaims *[]RequestedClaimModel `json:"requestedClaims,omitempty"`
+}
+
+type RequestedClaimModel struct {
+	Claim     ClaimModel `json:"claim"`
+	Mandatory *bool      `json:"mandatory"`
+}
+
+type ClaimModel struct {
+	DisplayName *string `json:"displayName,omitempty"`
+	Id          *string `json:"id,omitempty"`
+	Uri         string  `json:"uri"`
+}
+
 type LoginFlowGenerateResponseModel = internal.LoginFlowGenerateResponse
 
 type LoginFlowStatusResponseModel = internal.LoginFlowStatusResponse
@@ -89,14 +104,35 @@ type AuthenticatorModel = internal.Authenticator
 
 type LoginFlowTypeModel = internal.AuthenticationSequenceType
 
-// convertToApplicationPatchModel converts the public ApplicationBasicInfoUpdateModel to the internal PatchApplicationJSONRequestBody
-func convertToApplicationPatchModel(model ApplicationBasicInfoUpdateModel) internal.PatchApplicationJSONRequestBody {
+// convertBasicInfoUpdateModelToApplicationPatchModel converts the public ApplicationBasicInfoUpdateModel to the internal PatchApplicationJSONRequestBody
+func convertBasicInfoUpdateModelToApplicationPatchModel(model ApplicationBasicInfoUpdateModel) internal.PatchApplicationJSONRequestBody {
 	return internal.PatchApplicationJSONRequestBody{
 		Name:            model.Name,
 		Description:     model.Description,
 		ImageUrl:        model.ImageUrl,
 		AccessUrl:       model.AccessUrl,
 		LogoutReturnUrl: model.LogoutReturnUrl,
+	}
+}
+
+// convertClaimConfigUpdateModelToApplicationPatchModel converts the public ApplicationClaimConfigurationUpdateModel to the internal PatchApplicationJSONRequestBody
+func convertClaimConfigUpdateModelToApplicationPatchModel(model ApplicationClaimConfigurationUpdateModel) internal.PatchApplicationJSONRequestBody {
+	if model.RequestedClaims == nil {
+		return internal.PatchApplicationJSONRequestBody{}
+	} else {
+		requestedClaims := make([]internal.RequestedClaimConfiguration, len(*model.RequestedClaims))
+		for i, claim := range *model.RequestedClaims {
+			requestedClaims[i] = internal.RequestedClaimConfiguration{
+				Claim: internal.Claim{
+					Uri: claim.Claim.Uri,
+				},
+				Mandatory: claim.Mandatory,
+			}
+		}
+		return internal.PatchApplicationJSONRequestBody{
+			ClaimConfiguration: &internal.ClaimConfiguration{
+				RequestedClaims: &requestedClaims},
+		}
 	}
 }
 

@@ -264,7 +264,7 @@ func (c *ApplicationClient) GetAuthorizedAPIs(ctx context.Context, appID string)
 
 // UpdateBasicInfo updates basic information of an existing application
 func (c *ApplicationClient) UpdateBasicInfo(ctx context.Context, appId string, updateModel ApplicationBasicInfoUpdateModel) error {
-	patchData := convertToApplicationPatchModel(updateModel)
+	patchData := convertBasicInfoUpdateModelToApplicationPatchModel(updateModel)
 	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, patchData)
 	if err != nil {
 		return fmt.Errorf("failed to update application: %w", err)
@@ -361,6 +361,20 @@ func (c *ApplicationClient) UpdateOAuthConfig(ctx context.Context, applicationId
 			updateResp.StatusCode(), string(updateResp.Body))
 	}
 
+	return nil
+}
+
+// UpdateClaimConfig updates the claim configuration of an existing application
+func (c *ApplicationClient) UpdateClaimConfig(ctx context.Context, appId string, claimConfigUpdateModel ApplicationClaimConfigurationUpdateModel) error {
+	patchData := convertClaimConfigUpdateModelToApplicationPatchModel(claimConfigUpdateModel)
+	resp, err := c.apiClient.PatchApplicationWithResponse(ctx, appId, patchData)
+	if err != nil {
+		return fmt.Errorf("failed to update claim configuration: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("failed to update claim configuration: status %d, body: %s",
+			resp.StatusCode(), string(resp.Body))
+	}
 	return nil
 }
 

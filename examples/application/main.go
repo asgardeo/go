@@ -163,6 +163,34 @@ func main() {
 		log.Printf("Successfully updated OAuth configuration for app with ID: %s\n", OAuthConfigUpdatingAppId)
 	}
 
+	// Update claim configuration for an application
+	mandatory := false
+	requestedClaims := []application.RequestedClaimModel{
+		{
+			Claim: application.ClaimModel{
+				Uri: "http://wso2.org/claims/emailaddress",
+			},
+			Mandatory: &mandatory,
+		},
+		{
+			Claim: application.ClaimModel{
+				Uri: "http://wso2.org/claims/username",
+			},
+			Mandatory: &mandatory,
+		},
+	}
+	claimConfigUpdateData := application.ApplicationClaimConfigurationUpdateModel{
+		RequestedClaims: &requestedClaims,
+	}
+	claimConfigUpdatingAppId := "app-uuid"
+	err = client.Application.UpdateClaimConfig(ctx, claimConfigUpdatingAppId, claimConfigUpdateData)
+	if err != nil {
+		log.Printf("Error updating claim configuration: %v\n", err)
+		return
+	} else {
+		log.Printf("Successfully updated claim configuration for app with ID: %s\n", claimConfigUpdatingAppId)
+	}
+
 	// Authorize API.
 	apiResourceId := "api_resource_uuid"
 	policyIdentifier := "RBAC"
