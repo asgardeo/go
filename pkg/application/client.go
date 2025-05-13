@@ -397,7 +397,6 @@ func (c *ApplicationClient) UpdateLoginFlow(ctx context.Context, appId string, l
 
 // GenerateLoginFlow initiates the login flow generation process for an application.
 func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string) (*LoginFlowGenerateResponseModel, error) {
-
 	availableAuthenticators, err := c.buildAvailableAuthenticators(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build available authenticators: %w", err)
@@ -407,18 +406,22 @@ func (c *ApplicationClient) GenerateLoginFlow(ctx context.Context, prompt string
 	if err != nil {
 		return nil, fmt.Errorf("failed to build user claims: %w", err)
 	}
+
 	loginFlowGenerateRequest := internal.LoginFlowGenerateRequest{
 		AvailableAuthenticators: &availableAuthenticators,
 		UserClaims:              &userClaims,
 		UserQuery:               &prompt,
 	}
+
 	resp, err := c.apiClient.GenerateLoginFlowWithResponse(ctx, loginFlowGenerateRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate login flow: %w", err)
 	}
+
 	if resp.StatusCode() != http.StatusOK {
 		return nil, fmt.Errorf("failed to generate login flow: status %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
+
 	return resp.JSON200, nil
 }
 
@@ -905,6 +908,21 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 		return nil, fmt.Errorf("failed to list identity providers: %w", err)
 	}
 
+	if idpList == nil || idpList.IdentityProviders == nil {
+		// Continue with empty enterprise and social authenticator lists
+		enterpriseAuthenticators := []interface{}{}
+		socialAuthenticators := []interface{}{}
+
+		availableAuthenticators := map[string]interface{}{
+			"enterprise":   enterpriseAuthenticators,
+			"local":        moderatedAuthenticators,
+			"recovery":     recoveryAuthenticators,
+			"secondFactor": secondFactorAuthenticators,
+			"social":       socialAuthenticators,
+		}
+		return availableAuthenticators, nil
+	}
+
 	var enterpriseAuthenticators []interface{}
 	var socialAuthenticators []interface{}
 	for _, idp := range *idpList.IdentityProviders {
@@ -913,26 +931,37 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 			continue
 		}
 
-		federatedAuthenticators := idp.FederatedAuthenticators
-		if federatedAuthenticators == nil {
+		if idp.FederatedAuthenticators == nil {
 			// Skip the IdP if federated authenticator list is not available
 			continue
 		}
 
-		defaultAuthenticatorId := federatedAuthenticators.DefaultAuthenticatorId
-		if defaultAuthenticatorId == nil {
+		federatedAuthenticators := idp.FederatedAuthenticators
+		if federatedAuthenticators.DefaultAuthenticatorId == nil {
 			// Skip the IdP if default authenticator ID is not available
 			continue
 		}
+
+		defaultAuthenticatorId := federatedAuthenticators.DefaultAuthenticatorId
 
 		description := ""
 		if idp.Description != nil {
 			description = *idp.Description
 		}
 
+		if federatedAuthenticators.Authenticators == nil {
+			// Skip IdP if authenticator list is not available
+			continue
+		}
+
 		idpAuthenticatorName := ""
 		for _, authenticator := range *federatedAuthenticators.Authenticators {
-			if authenticator.AuthenticatorId != nil && *authenticator.AuthenticatorId == *defaultAuthenticatorId {
+			if authenticator.AuthenticatorId == nil {
+				// Skip this authenticator if its ID is nil
+				continue
+			}
+
+			if *authenticator.AuthenticatorId == *defaultAuthenticatorId {
 				if authenticator.Name != nil {
 					idpAuthenticatorName = *authenticator.Name
 				}
@@ -951,7 +980,8 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 			"name":        idpAuthenticatorName,
 		}
 
-		if _, exists := internal.SocialAuthenticatorIDs[*defaultAuthenticatorId]; exists {
+		_, exists := internal.SocialAuthenticatorIDs[*defaultAuthenticatorId]
+		if exists {
 			socialAuthenticators = append(socialAuthenticators, authenticatorData)
 		} else {
 			enterpriseAuthenticators = append(enterpriseAuthenticators, authenticatorData)
