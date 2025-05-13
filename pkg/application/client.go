@@ -908,17 +908,47 @@ func (c *ApplicationClient) buildAvailableAuthenticators(ctx context.Context) (m
 	var enterpriseAuthenticators []interface{}
 	var socialAuthenticators []interface{}
 	for _, idp := range *idpList.IdentityProviders {
+		if idp.Name == nil {
+			// Skip the IdP if the name is not available
+			continue
+		}
+
 		federatedAuthenticators := idp.FederatedAuthenticators
+		if federatedAuthenticators == nil {
+			// Skip the IdP if federated authenticator list is not available
+			continue
+		}
+
 		defaultAuthenticatorId := federatedAuthenticators.DefaultAuthenticatorId
+		if defaultAuthenticatorId == nil {
+			// Skip the IdP if default authenticator ID is not available
+			continue
+		}
+
 		description := ""
-		if idp.Description == nil {
+		if idp.Description != nil {
 			description = *idp.Description
 		}
-		// TODO: Currently, authenticator name is used as the idp name. Need to improve this in the future.
+
+		idpAuthenticatorName := ""
+		for _, authenticator := range *federatedAuthenticators.Authenticators {
+			if authenticator.AuthenticatorId != nil && *authenticator.AuthenticatorId == *defaultAuthenticatorId {
+				if authenticator.Name != nil {
+					idpAuthenticatorName = *authenticator.Name
+				}
+				break
+			}
+		}
+
+		if idpAuthenticatorName == "" {
+			// Skip the IdP if the authenticator name is not found
+			continue
+		}
+
 		authenticatorData := map[string]interface{}{
 			"description": description,
 			"idp":         *idp.Name,
-			"name":        *idp.Name,
+			"name":        idpAuthenticatorName,
 		}
 
 		if _, exists := internal.SocialAuthenticatorIDs[*defaultAuthenticatorId]; exists {
