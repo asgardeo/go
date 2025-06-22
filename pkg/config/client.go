@@ -20,10 +20,14 @@ package config
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -108,6 +112,45 @@ func (c *ClientConfig) WithTimeout(timeout time.Duration) *ClientConfig {
 	if c.HTTPClient != nil {
 		c.HTTPClient.Timeout = timeout
 	}
+	return c
+}
+
+// WithCertificatePath sets the CA certificates from the given path
+func (c *ClientConfig) WithCertificatePath(certPath *string) *ClientConfig {
+	if certPath == nil || *certPath == "" {
+		return c
+	}
+
+	certPool, err := x509.SystemCertPool()
+	if err != nil || certPool == nil {
+		log.Printf("Could not load system cert pool. Creating a new cert pool.")
+		certPool = x509.NewCertPool()
+	}
+
+	pemData, err := os.ReadFile(*certPath)
+	if err != nil {
+		log.Printf("Failed to read CA certificate from given . Hence, skipping adding certificates.")
+		return c
+	}
+
+	if ok := certPool.AppendCertsFromPEM(pemData); !ok {
+		log.Printf("No new certificates appended from PEM data. It might be empty or contain invalid certs.")
+		return c
+	}
+
+	if c.HTTPClient == nil {
+		log.Printf("HTTP client is not initialized. Hence, skipping setting TLS configuration.")
+		return c
+	}
+
+	if c.HTTPClient.Transport == nil {
+		c.HTTPClient.Transport = http.DefaultTransport.(*http.Transport).Clone()
+	}
+
+	c.HTTPClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{
+		RootCAs: certPool,
+	}
+
 	return c
 }
 
