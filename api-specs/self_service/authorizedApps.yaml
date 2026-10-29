@@ -1,0 +1,380 @@
+openapi: 3.0.0
+info:
+  description: |
+    This is the RESTful API for managing OAuth2 Authorized Apps.
+
+    Through this API, authenticated users can view and revoke the OAuth2/OIDC applications which they have permanently provided consent (by clicking on 'Approve Always' during OAuth2 user consent collection) to act on behalf of the user without continuously requesting consent.
+
+    Additionally, privileged user can view and revoke other users' authorized apps using the API.
+  version: '2.0'
+  title: WSO2 Identity Server - OAuth2 Authorized Apps API
+  contact:
+    name: "WSO2 Identity Server"
+    url: "https://wso2.com/identity-and-access-management/"
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+
+servers:
+  - url: 'https://localhost:9443/t/{tenant-domain}/api/users/v2'
+    variables:
+      tenant-domain:
+        default: carbon.super
+# host: is.wso2.com
+# basePath: /t/{tenant-domain}/api/identity/1.0.0/
+
+# tags are used for organizing operations
+tags:
+  - name: me
+    description: |
+      Operations for the authenticated user.
+  - name: admin
+    description: |
+      Operations available for privileged users, to be invoked on behalf of another user.
+
+      **These endpoints are not released in WSO2 Identity Server - 5.9.0 version and will be released in the next product version.**
+
+security:
+  - OAuth2: []
+  - BasicAuth: []
+
+paths:
+  '/me/authorized-apps':
+    get:
+      tags:
+        - me
+      summary: "List authorized applications for the authenticated user"
+      operationId: listLoggedInUserAuthorizedApps
+      description:
+        Lists approved OAuth applications of the authenticated user<br>
+        <b>Permission required:</b> <br>
+        * None <br>
+        <b>Scope required:</b> <br>
+        * internal_login
+      responses:
+        '200':
+          description: search results matching criteria
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuthorizedAppDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags:
+        - me
+      summary: "Removes authorized applications for the authenticated user"
+      operationId: deleteLoggedInUserAuthorizedApps
+      description:
+        Removes approved OAuth applications of the authenticated user<br>
+        <b>Permission required:</b> <br>
+        * None <br>
+        <b>Scope required:</b> <br>
+        * internal_login
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  '/me/authorized-apps/{application-id}':
+    get:
+      tags:
+        - me
+      summary: "Retrieve authorized app by app ID for the authenticated user"
+      operationId: getLoggedInUserAuthorizedAppByAppId
+      description:
+        Retrieves authorized OAuth app by an app ID for the authenticated user<br>
+        <b>Permission required:</b> <br>
+        * None <br>
+        <b>Scope required:</b> <br>
+        * internal_login
+      parameters:
+        - $ref: '#/components/parameters/applicationNamePathParam'
+      responses:
+        '200':
+          description: search results matching criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizedAppDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags:
+        - me
+      summary: "Removes authorized app by app ID for the authenticated user"
+      operationId: deleteLoggedInUserAuthorizedAppByAppId
+      description:
+        Removes authorized OAuth app by an app ID for the authenticated user<br>
+        <b>Permission required:</b> <br>
+        * None <br>
+        <b>Scope required:</b> <br>
+        * internal_login
+      parameters:
+        - $ref: '#/components/parameters/applicationNamePathParam'
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  '/{user-id}/authorized-apps':
+    get:
+      tags:
+        - admin
+      summary: List authorized applications of a user
+      operationId: listUserAuthorizedApps
+      description: |
+        List approved OAuth applications for a given user
+      parameters:
+        - $ref: '#/components/parameters/usernamePathParams'
+      responses:
+        '200':
+          description: search results matching criteria
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuthorizedAppDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags:
+        - admin
+      summary: "Remove all authorized applications of a user"
+      operationId:  deleteUserAuthorizedApps
+      description: |
+        Removes authorization from all OAuth apps of a given user
+      parameters:
+        - $ref: '#/components/parameters/usernamePathParams'
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  '/{user-id}/authorized-apps/{application-id}':
+    get:
+      tags:
+        - admin
+      summary: "Retrieve authorized app by app ID for a user"
+      operationId: listUserAuthorizedAppsByAppId
+      description: |
+        Retrived autherized OAuth apps by an app ID for a given user
+      parameters:
+        - $ref: '#/components/parameters/usernamePathParams'
+        - $ref: '#/components/parameters/applicationNamePathParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizedAppDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags:
+        - admin
+      summary: "Removes challenge question answers"
+      operationId: deleteUserAuthorizedAppsByAppId
+      description: |
+        Removes autherized OAuth apps by an app ID for a given user
+      parameters:
+        - $ref: '#/components/parameters/usernamePathParams'
+        - $ref: '#/components/parameters/applicationNamePathParam'
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  '/authorized-apps/{application-id}/tokens':
+    delete:
+      tags:
+        - admin
+      summary: "Removes all the tokens granted for an application"
+      operationId: deleteIssuedTokensByAppId
+      description: |
+        Removes all the tokens granted for a given app ID
+      parameters:
+        - $ref: '#/components/parameters/applicationNamePathParam'
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  parameters:
+    usernamePathParams:
+      in: path
+      name: user-id
+      required: true
+      description: username of the user
+      schema:
+        type: string
+    applicationNamePathParam:
+      in: path
+      name: application-id
+      required: true
+      description: Application ID
+      schema:
+        type: string
+
+  schemas:
+    #-----------------------------------------------------
+    # AuthorizedApp Properties object
+    #-----------------------------------------------------
+    AuthorizedAppDTO:
+      type: object
+      required:
+        - id
+        - name
+        - clientId
+        - approvedScopes
+      properties:
+        id:
+          type: string
+          example: "298c5fd8-01ac-4ada-bc10-1ce37f32140"
+          description: Unique Id of the application.
+        name:
+          type: string
+          example: "FooApp"
+          description: Name of the application
+        clientId:
+          type: string
+          example: "7y7zPj4wDX3nRtfPKrmt8Auke44a"
+          description: Client Id of the application.
+        approvedScopes:
+          $ref: '#/components/schemas/ArrayOfApprovedScopes'
+
+    ArrayOfApprovedScopes:
+      type: array
+      description: Approved scopes
+      items:
+        type: string
+        example: [approved_scope_1, approved_scope_2]
+
+    #-----------------------------------------------------
+    # The Error Response  object
+    #-----------------------------------------------------
+    ErrorDTO:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: "some_error_code"
+        message:
+          type: string
+          example: "Some Error Message"
+        description:
+          type: string
+          example: "Some Error Description"
+        traceId:
+          type: string
+          example: "Some Correlation for Error Instance"
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    # ClientCertificate:
+    #   type: custom
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: 'https://localhost:9443/oauth2/authorize'
+          tokenUrl: 'https://localhost:9443/oauth2/token'
+          scopes: {}
+  #-----------------------------------------------------
+  # Descriptions of common responses
+  #-----------------------------------------------------
+  responses:
+    NotFound:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+    Unauthorized:
+      description: Unauthorized
+    ServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+    InvalidInput:
+      description: Invalid input, request invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+    Conflict:
+      description: Element Already Exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+    Created:
+      description: Item Created
+    OK:
+      description: OK
+    Deleted:
+      description: Item Deleted
+    Forbidden:
+      description: Resource Forbidden

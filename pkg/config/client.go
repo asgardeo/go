@@ -41,6 +41,8 @@ const (
 	AuthMethodToken AuthMethod = "token"
 	// AuthMethodClientCredentials represents client credentials grant type
 	AuthMethodClientCredentials AuthMethod = "client_credentials"
+	// AuthMethodContextToken represents a token set on the context of each request
+	AuthMethodContextToken AuthMethod = "context_token"
 )
 
 // TokenResponse represents the response from the OAuth token endpoint
@@ -169,8 +171,30 @@ func (c *ClientConfig) WithClientCredentials(clientID, clientSecret string) *Cli
 	return c
 }
 
+// WithContextToken sets up authentication with the token set on each request's context by ContextWithToken
+func (c *ClientConfig) WithContextToken() *ClientConfig {
+	c.AuthMethod = AuthMethodContextToken
+	return c
+}
+
+type tokenContextKey struct{}
+
+// ContextWithToken returns a context whose requests use the given token, when AuthMethodContextToken is configured
+func ContextWithToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, tokenContextKey{}, token)
+}
+
 // GetToken returns the current valid token, fetching a new one if necessary
 func (c *ClientConfig) GetToken(ctx context.Context) (string, error) {
+	// If using context token method, return the token set on the context
+	if c.AuthMethod == AuthMethodContextToken {
+		token, _ := ctx.Value(tokenContextKey{}).(string)
+		if token == "" {
+			return "", fmt.Errorf("no token set on the context")
+		}
+		return token, nil
+	}
+
 	c.tokenRefreshMutex.Lock()
 	defer c.tokenRefreshMutex.Unlock()
 

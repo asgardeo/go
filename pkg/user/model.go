@@ -20,6 +20,16 @@ package user
 
 import "github.com/asgardeo/go/pkg/user/internal"
 
+type MeModel = map[string]interface{}
+
+type PatchOperationModel = internal.PatchOperation
+
+const (
+	PatchOpAdd     = "add"
+	PatchOpReplace = "replace"
+	PatchOpRemove  = "remove"
+)
+
 type UserCreateModel struct {
 	Username  string `json:"username"`
 	Email     string `json:"email"`

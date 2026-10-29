@@ -1,0 +1,791 @@
+openapi: 3.0.0
+info:
+  description: >
+    This document specifies a **RESTful API** for WSO2 **Identity Server** .
+
+    It is written with [swagger 2](http://swagger.io/). The APIs provide the
+
+    capability to add/retrieve/delete associated local/federated accounts of an authenticated user.
+
+    In addition, APIs are available for privileged users to be invoked on behalf of another user
+
+    to retrieve/delete associated local/federated accounts.
+  version: v1
+  title: WSO2 Identity Server - User Account Associations API Definition
+  contact:
+    name: WSO2
+    url: http://wso2.com/products/identity-server/
+    email: architecture@wso2.com
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+tags:
+  - name: me
+    description: Operations for the authenticated user.
+  - name: admin
+    description: >
+      Operations available for privileged users, to be invoked on behalf of
+      another user. **These endpoints are not released in WSO2 Identity Server -
+      5.9.0 version and will be released in the next product version.**
+security:
+  - OAuth2: []
+  - BasicAuth: []
+paths:
+  /me/associations:
+    post:
+      description: >
+        This API is used to associate a user to the authenticated user. For
+        example, if it is required to associate my
+
+        user account to the user account of 'john', this endpoint can be used. The userId and the password are required to associate the accounts.<br>
+
+        <b>Permission required:</b>
+            * None
+        <b>Scope required:</b>
+            * internal_login
+      summary: |
+        Associate a user to the authenticated user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/AssociationUserRequest"
+              example: |
+                {
+                  "userId": "john",
+                  "password": "userpassword"
+                }
+        description: User details to be associated. userId should be the fully qualified
+          username of the user.
+        required: true
+      responses:
+        "201":
+          description: Successfully created
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Resource Forbidden
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - me
+    get:
+      tags:
+        - me
+      summary: Retrive the associations of the authenticated user.
+      description: >
+        This API is used to retrieve the associations of the authenticated
+        user.<br>
+
+        <b>Permission required:</b>
+            * None
+        <b>Scope required:</b>
+            * internal_login
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Resource Forbidden
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete all my user associations
+      description: >
+        This API is used to delete all associations of the authenticated
+        user.<br>
+
+        <b>Permission required:</b>
+            * None
+        <b>Scope required:</b>
+            * internal_login
+      responses:
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Resource Forbidden
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - me
+  "/me/associations/{associated-user-id}":
+    delete:
+      parameters:
+        - name: associated-user-id
+          in: path
+          required: true
+          schema:
+            type: string
+      summary: Delete given user account from my user associations
+      description: >
+        This API is used to delete the given user account from the associations
+        of the authenticated user.<br>
+
+        <b>Permission required:</b>
+            * None
+        <b>Scope required:</b>
+            * internal_login
+      responses:
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Resource Forbidden
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - me
+  /me/federated-associations:
+    get:
+      tags:
+        - me
+      summary: Retrive the federated associations of the authenticated user.
+      description: >
+        This API is used to retrieve the federated associations of the
+        authenticated user.<br>
+
+        <b>Permission required:</b>
+            * None
+        <b>Scope required:</b>
+            * internal_login
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FederatedAssociation"
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Resource Forbidden
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete all my federated user associations
+      description: >
+        This API is used to delete all the federated associations of the
+        authenticated user.<br>
+
+        <b>Permission required:</b>
+            * None
+        <b>Scope required:</b>
+            * internal_login
+      responses:
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Resource Forbidden
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - me
+  "/me/federated-associations/{id}":
+    delete:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      summary: Delete my federated association
+      description: >
+        This API is used to delete a federated association of the authenticated
+        user.<br>
+
+        <b>Permission required:</b>
+            * None
+        <b>Scope required:</b>
+            * internal_login
+      responses:
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized request
+        "403":
+          description: Resource Forbidden
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - me
+  "/{user-id}/associations":
+    get:
+      tags:
+        - admin
+      summary: Get user's associations
+      description: |
+        This API is used to retrieve the associations of the user.<br>
+        <b>Permission required:</b>
+            * /permission/admin/manage/identity/user/association/view
+        <b>Scope required:</b>
+            * internal_user_association_view
+      parameters:
+        - name: user-id
+          in: path
+          required: true
+          description: user id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized request
+        "403":
+          description: Resource Forbidden
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      parameters:
+        - name: user-id
+          in: path
+          required: true
+          schema:
+            type: string
+      summary: Delete user's all user associations
+      description: |
+        This API is used to delete all associations of the user.<br>
+        <b>Permission required:</b>
+            * /permission/admin/manage/identity/user/association/delete
+        <b>Scope required:</b>
+            * internal_user_association_delete
+      responses:
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized request
+        "403":
+          description: Resource Forbidden
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - admin
+  "/{user-id}/federated-associations":
+    get:
+      tags:
+        - admin
+      summary: Get user's federated associations
+      description: |
+        This API is used to retrieve the federated associations of the user.<br>
+        <b>Permission required:</b>
+            * /permission/admin/manage/identity/user/association/view
+        <b>Scope required:</b>
+            * internal_user_association_view
+      parameters:
+        - name: user-id
+          in: path
+          required: true
+          description: user id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FederatedAssociation"
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized request
+        "403":
+          description: Resource Forbidden
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      parameters:
+        - name: user-id
+          in: path
+          required: true
+          schema:
+            type: string
+      summary: Delete user's all user federated associations
+      description: |
+        This API is used to delete all federated associations of the user.<br>
+        <b>Permission required:</b>
+            * /permission/admin/manage/identity/user/association/delete
+        <b>Scope required:</b>
+            * internal_user_association_delete
+      responses:
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized request
+        "403":
+          description: Resource Forbidden
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - admin
+    post:
+      summary: Create federated user association
+      description: |
+        This API is used to create federated user associations. <br>
+          <b>Permission required:</b>
+              * /permission/admin/manage/identity/user/association/create
+          <b>Scope required:</b>
+              * internal_user_association_create
+      parameters:
+        - name: user-id
+          in: path
+          required: true
+          description: user id
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FederatedAssociationRequest"
+        description: User details to be associated.
+        required: true
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Resource Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - admin
+  "/{user-id}/federated-associations/{id}":
+    delete:
+      parameters:
+        - name: user-id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      summary: Delete user's federated association
+      description: |
+        This API is used to delete a federated association of the user.<br>
+        <b>Permission required:</b>
+            * /permission/admin/manage/identity/user/association/delete
+        <b>Scope required:</b>
+            * internal_user_association_delete
+      responses:
+        "204":
+          description: No content
+        "401":
+          description: Unauthorized request
+        "403":
+          description: Resource Forbidden
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - admin
+  /federated-associations/bulk:
+    post:
+      summary: Create and Delete users associations in bulk
+      description: >
+        This API is used to create and delete users association in bulk. <br>
+
+        Maximum number of supported operations in a single request is 1000 by default.
+
+        It can be configured using a server level configuration.
+            <b>Scope required:</b>
+                * internal_user_fed_association_bulk
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkFederatedAssociationRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkFederatedAssociationResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - admin
+servers:
+  - url: https://localhost:9443/t/{tenant-domain}/api/users/v1
+    variables:
+      tenant-domain:
+        default: unknown
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://localhost:9443/oauth2/authorize
+          tokenUrl: https://localhost:9443/oauth2/token
+          scopes: {}
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: some_error_code
+        message:
+          type: string
+          example: Some Error Message
+        description:
+          type: string
+          example: Some Error Description
+        traceId:
+          type: string
+          example: Some Correlation for Error Instance
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+          example: 23e22434234234329jj9iin
+        username:
+          type: string
+          example: john
+        userStoreDomain:
+          type: string
+          example: PRIMARY
+        tenantDomain:
+          type: string
+          example: carbon.super
+        firstName:
+          type: string
+          example: john
+        lastName:
+          type: string
+          example: doe
+        email:
+          type: string
+          example: john.doe@wso2.com
+    FederatedAssociation:
+      type: object
+      properties:
+        id:
+          type: string
+          example: eeqweisfhkdfik
+        idp:
+          $ref: "#/components/schemas/Idp"
+        federatedUserId:
+          type: string
+          example: john@google.com
+    FederatedAssociationRequest:
+      type: object
+      properties:
+        idp:
+          type: string
+          example: exampleIdP
+          description: Name of the IdP
+        federatedUserId:
+          type: string
+          example: john@example.com
+          description: User identifier in the federated IdP
+    Idp:
+      type: object
+      properties:
+        id:
+          type: string
+          example: eeqweisfhkdfikaefcqwesfceqwqas
+        name:
+          type: string
+          example: google.com
+        displayName:
+          type: string
+          example: Google
+        imageUrl:
+          type: string
+          example: https://is.example.com/sample.jpg
+    Property:
+      type: object
+      properties:
+        key:
+          type: string
+          example: test-key
+        value:
+          type: string
+          example: test-value
+    AssociationUserRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          example: john
+        password:
+          type: string
+          example: userpassword
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/Property"
+    BulkFederatedAssociationRequest:
+      type: object
+      properties:
+        failOnErrors:
+          type: integer
+          example: 1
+          description: >
+            This represents whether the API should stop processing the
+            operations if any of them fail. The subsequent
+
+            operations after the the fail count is reached will not be processed.
+
+            If set to 0 or not set, the API will continue processing the operations even if some of them fail.
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkFederatedAssociationOperation"
+    BulkFederatedAssociationOperation:
+      type: object
+      required:
+        - method
+        - bulkId
+        - path
+      properties:
+        method:
+          type: string
+          enum:
+            - POST
+            - DELETE
+          example: POST
+          description: >
+            HTTP method to be used for the operation. Supported methods are POST
+            and, DELETE. These values
+
+            If the method is not specified, the operation will be treated as a bad request.
+        bulkId:
+          type: string
+          example: ytrewq
+        path:
+          type: string
+          example: /b1781d25-bde5-460a-a58a-8fe8dbfd8487/federated-associations
+          description: >
+            The path to the resource to be operated on. The path should be
+            relative to the base path of the API.
+
+            Full path for a federated association operation would be
+
+            `/t/{tenant-domain}/api/users/v1/{user-id}/federated-associations/{association-id}`.
+        data:
+          $ref: "#/components/schemas/UserFederatedAssociationData"
+    UserFederatedAssociationData:
+      type: object
+      properties:
+        idp:
+          type: string
+          example: exampleIdP
+          description: Name of the IdP
+        federatedUserId:
+          type: string
+          example: john@example.com
+          description: User identifier in the federated IdP
+    BulkFederatedAssociationResponse:
+      type: object
+      properties:
+        Operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkAssociationOperationResponse"
+    BulkAssociationOperationResponse:
+      type: object
+      properties:
+        bulkId:
+          type: string
+          example: qwerty
+        status:
+          type: object
+          properties:
+            statusCode:
+              type: integer
+              example: "400"
+            errorCode:
+              type: string
+              example: UAA-10012
+            errorMessage:
+              type: string
+              example: "Error while adding federated user association:
+                1890c6c0-d1a0-4eb4-8075-320756d75946"
+            errorDescription:
+              type: string
+              example: The federated association is already associated to a local user
