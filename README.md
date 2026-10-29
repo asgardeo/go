@@ -70,6 +70,8 @@ go run examples/application/main.go
 ## Services
 
 - Applications
+- Self Service
+- Consent
 
 ## Contributing
 

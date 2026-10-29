@@ -47,6 +47,17 @@ type Email struct {
 	Value   string `json:"value"`
 }
 
+type PatchMeJSONBody struct {
+	Schemas    []string         `json:"schemas"`
+	Operations []PatchOperation `json:"Operations"`
+}
+
+type PatchOperation struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path,omitempty"`
+	Value interface{} `json:"value,omitempty"`
+}
+
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
@@ -135,6 +146,9 @@ func (c *Client) applyEditors(ctx context.Context, req *http.Request, additional
 // The interface specification for the client above.
 type ClientInterface interface {
 	AddUser(ctx context.Context, body AddUserJSONBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetMe(ctx context.Context, attributes string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PatchMe(ctx context.Context, body PatchMeJSONBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSchemas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) AddUser(ctx context.Context, body AddUserJSONBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -185,4 +199,73 @@ func NewAddUserRequestWithBody(server string, contentType string, body io.Reader
 	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
+}
+
+func (c *Client) GetMe(ctx context.Context, attributes string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMeRequest(c.Server, attributes)
+	if err != nil {
+		return nil, err
+	}
+	return c.do(ctx, req, reqEditors)
+}
+
+func (c *Client) PatchMe(ctx context.Context, body PatchMeJSONBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchMeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	return c.do(ctx, req, reqEditors)
+}
+
+func (c *Client) GetSchemas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := newRequest(c.Server, "GET", "/Schemas", nil)
+	if err != nil {
+		return nil, err
+	}
+	return c.do(ctx, req, reqEditors)
+}
+
+func (c *Client) do(ctx context.Context, req *http.Request, reqEditors []RequestEditorFn) (*http.Response, error) {
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func NewGetMeRequest(server string, attributes string) (*http.Request, error) {
+	req, err := newRequest(server, "GET", "/Me", nil)
+	if err != nil {
+		return nil, err
+	}
+	if attributes != "" {
+		req.URL.RawQuery = url.Values{"attributes": {attributes}}.Encode()
+	}
+	return req, nil
+}
+
+func NewPatchMeRequest(server string, body PatchMeJSONBody) (*http.Request, error) {
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	req, err := newRequest(server, "PATCH", "/Me", bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/scim+json")
+	return req, nil
+}
+
+// newRequest creates a request for a path relative to the server URL
+func newRequest(server, method, operationPath string, body io.Reader) (*http.Request, error) {
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+	queryURL, err := serverURL.Parse("." + operationPath)
+	if err != nil {
+		return nil, err
+	}
+	return http.NewRequest(method, queryURL.String(), body)
 }
